@@ -1,0 +1,174 @@
+name: Build and Test with Ollama
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Setup Ollama
+      run: |
+        curl -fsSL https://ollama.com/install.sh | sh
+        ollama pull hermes-3-llama-3.2-3b
+        nohup ollama serve &
+        sleep 10 # Give Ollama time to start
+
+    - name: Setup OpenAI API proxy for Ollama
+      run: |
+        # Install simple HTTP server for proxying requests
+        npm install -g http-server-proxy
+        
+        # Start a proxy server that transforms requests to Ollama format
+        cat > proxy.js << 'EOL'
+        const http = require('http');
+        const https = require('https');
+
+        const OLLAMA_HOST = 'http://localhost:11434';
+        
+        const server = http.createServer(async (req, res) => {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+          
+          if (req.method === 'OPTIONS') {
+            res.writeHead(200);
+            res.end();
+            return;
+          }
+          
+          if (req.url.includes('/v1/chat/completions')) {
+            let body = '';
+            req.on('data', chunk => {
+              body += chunk.toString();
+            });
+            
+            req.on('end', async () => {
+              try {
+                const openaiData = JSON.parse(body);
+                
+                // Transform OpenAI request to Ollama format
+                const ollamaData = {
+                  model: openaiData.model || 'hermes-3-llama-3.2-3b',
+                  messages: openaiData.messages,
+                  stream: openaiData.stream || false,
+                  options: {
+                    temperature: openaiData.temperature || 0.7,
+                    max_tokens: openaiData.max_tokens || 2048
+                  }
+                };
+                
+                // Make request to Ollama
+                const ollamaReq = http.request(
+                  `${OLLAMA_HOST}/api/chat`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    }
+                  },
+                  (ollamaRes) => {
+                    let ollamaBody = '';
+                    ollamaRes.on('data', (chunk) => {
+                      ollamaBody += chunk;
+                    });
+                    
+                    ollamaRes.on('end', () => {
+                      try {
+                        const ollamaResponse = JSON.parse(ollamaBody);
+                        
+                        // Transform Ollama response to OpenAI format
+                        const openaiResponse = {
+                          id: `chatcmpl-${Date.now()}`,
+                          object: 'chat.completion',
+                          created: Math.floor(Date.now() / 1000),
+                          model: ollamaResponse.model || openaiData.model,
+                          choices: [
+                            {
+                              index: 0,
+                              message: {
+                                role: 'assistant',
+                                content: ollamaResponse.message?.content || ''
+                              },
+                              finish_reason: ollamaResponse.done ? 'stop' : 'length'
+                            }
+                          ],
+                          usage: {
+                            prompt_tokens: ollamaResponse.prompt_eval_count || 0,
+                            completion_tokens: ollamaResponse.eval_count || 0,
+                            total_tokens: (ollamaResponse.prompt_eval_count || 0) + (ollamaResponse.eval_count || 0)
+                          }
+                        };
+                        
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify(openaiResponse));
+                      } catch (error) {
+                        console.error('Error processing Ollama response:', error);
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Error processing Ollama response' }));
+                      }
+                    });
+                  }
+                );
+                
+                ollamaReq.on('error', (error) => {
+                  console.error('Error making request to Ollama:', error);
+                  res.writeHead(500, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'Error making request to Ollama' }));
+                });
+                
+                ollamaReq.write(JSON.stringify(ollamaData));
+                ollamaReq.end();
+                
+              } catch (error) {
+                console.error('Error parsing request:', error);
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+              }
+            });
+          } else {
+            res.writeHead(404);
+            res.end('Not found');
+          }
+        });
+        
+        server.listen(3000, () => {
+          console.log('OpenAI proxy running on port 3000');
+        });
+        EOL
+        
+        # Start the proxy server
+        node proxy.js &
+        sleep 5 # Give proxy time to start
+
+    - name: Run tests with Ollama as OpenAI replacement
+      env:
+        OPENAI_API_KEY: "dummy-key-not-used-by-ollama"
+        OPENAI_API_BASE_URL: "http://localhost:3000"
+      run: |
+        npm run build
+        npm run check
+
+    - name: Run static generator
+      env:
+        OPENAI_API_KEY: "dummy-key-not-used-by-ollama"
+        OPENAI_API_BASE_URL: "http://localhost:3000"
+      run: |
+        npm run generate
