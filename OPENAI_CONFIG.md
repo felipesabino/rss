@@ -21,12 +21,14 @@ OPENAI_API_BASE_URL=http://your-local-server:port/v1
    ```
    OPENAI_API_KEY=your-api-key
    OPENAI_API_BASE_URL=http://localhost:8080/v1
+   OPENAI_MODEL_NAME=gpt-3.5-turbo
    ```
 
 3. **Using a private OpenAI-compatible API server**:
    ```
    OPENAI_API_KEY=your-api-key
    OPENAI_API_BASE_URL=https://your-private-api-server.com/v1
+   OPENAI_MODEL_NAME=gpt-3.5-turbo
    ```
 
 ## Notes

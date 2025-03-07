@@ -12,7 +12,7 @@ export async function summarizeText(text: string): Promise<string> {
 
   try {
     const response = await openai.chat.completions.create({
-      model: "hermes-3-llama-3.2-3b",
+      model: process.env.OPENAI_MODEL_NAME,
       messages: [
         {
           role: "system",
