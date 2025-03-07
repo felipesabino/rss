@@ -18,17 +18,17 @@ export const feeds: FeedConfig[] = [
     url: "https://news.ycombinator.com/rss",
     updateInterval: 30,
   },
-  // {
-  //   id: 2,
-  //   name: "The Verge",
-  //   url: "https://www.theverge.com/rss/index.xml",
-  //   updateInterval: 60,
-  // },
-  // {
-  //   id: 3,
-  //   name: "Reddit /r/news",
-  //   url: "https://www.reddit.com/r/news/.rss",
-  //   updateInterval: 30
-  // }
+  {
+    id: 2,
+    name: "The Verge",
+    url: "https://www.theverge.com/rss/index.xml",
+    updateInterval: 60,
+  },
+  {
+    id: 3,
+    name: "Reddit /r/news",
+    url: "https://www.reddit.com/r/news/.rss",
+    updateInterval: 30
+  }
   // Add more feeds as needed
 ];
