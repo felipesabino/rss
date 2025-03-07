@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Brutalist Report</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Brutalist Report knock-off</h1>
+        <p class="updated-at">Last updated: 3/7/2025, 4:35:48 PM</p>
+      </div>
+      
+      <div class="feeds-container">
+        
+          <div class="feed">
+            <h3 class="feed-title">Hacker News</h3>
+            <div class="feed-items">
+              
+                
+                  <div class="feed-item">
+                    <div class="feed-item-header">
+                      <a href="https://engineering.fb.com/2025/01/21/production-engineering/strobelight-a-profiling-service-built-on-open-source-technology/" target="_blank" rel="noopener noreferrer" class="feed-item-link">
+                        Strobelight: A profiling service built on open source technology
+                      </a>
+                      
+                        <span class="feed-item-date">
+                          (07/03/2025 14:43)
+                        </span>
+                      
+                      
+                        <span class="feed-item-summary-toggle" data-item-id="1">[ai]</span>
+                      
+                    </div>
+                    
+                      <div class="feed-item-summary hidden" id="summary-1">
+                        The article discusses Strobelight, a performance profiling tool developed by Meta, which helps engineers identify and fix performance issues in their code. Here are some key points about Strobelight:
+
+**What is Strobelight?**
+
+Strobelight is a performance profiler that provides detailed information about the performance of code, including CPU cycles, memory allocation, and other metrics.
+
+**Key Features:**
+
+1. **Query Language:** Strobelight has a query language (Scuba) that allows users to extract data from the profiling results.
+2. **Visualizations:** The tool provides various visualizations, such as flame graphs, pie charts, and time series graphs, to help users understand complex performance data.
+3. **Delayd Symbolization:** Strobelight delays symbolization until after profiling to prevent memory thrashing on the host machine.
+4. **Frame Pointers:** Meta&#39;s user space binaries include frame pointers, which enables Strobelight to walk the call stack and extract performance data.
+
+**Tools:**
+
+1. **Scuba:** A query language database and UI that provides a large suite of visualizations for users.
+2. **Tracery:** A trace visualization tool used at Meta to combine correlated streams of profile data on one screen.
+3. **Crochet Profiler:** Combines service request spans, CPU-cycles stacks, and off-CPU data to provide a detailed snapshot of performance.
+
+**Real-World Impact:**
+
+Strobelight has helped engineers at Meta catch performance regressions, identify computationally expensive code patterns, and optimize their code for better performance. One notable example is &#34;The Biggest Ampersand,&#34; where a single character change fixed an unintentional array copy in C++ code that saved an estimated 15,000 servers in capacity.
+
+**Future Plans:**
+
+1. **Open-Sourcing:** The Strobelight team is working on open-sourcing the profilers and libraries to make them more robust and useful.
+2. **Collaboration with Engineers:** The team will continue to work closely with Meta&#39;s performance engineers to develop new features that better analyze code.
+
+Overall, Strobelight is a powerful tool for identifying and fixing performance issues in code, and its collaboration with engineers has led to significant gains in terms of capacity savings and optimization.
+                      </div>
+                    
+                  </div>
+                
+              
+            </div>
+          </div>
+        
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Add click event listeners to all summary toggle elements
+        document.querySelectorAll('.feed-item-summary-toggle').forEach(function(element) {
+          element.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-item-id');
+            const summaryElement = document.getElementById('summary-' + itemId);
+            if (summaryElement) {
+              summaryElement.classList.toggle('hidden');
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
