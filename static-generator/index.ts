@@ -12,14 +12,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Ensure the data directory exists
-const dataDir = path.join(__dirname, 'data');
+const dataDir = path.join(__dirname, '../', '.cache');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
 // Run the generator script
 console.log('Starting the static site generation process...');
-exec('npx ts-node static-generator/generator.ts', (error, stdout, stderr) => {
+exec('tsx static-generator/generator.ts', (error, stdout, stderr) => {
   if (error) {
     console.error(`Error: ${error.message}`);
     return;

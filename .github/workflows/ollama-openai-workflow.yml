@@ -1,4 +1,4 @@
-name: Build and Test with Ollama
+name: Build and Publish
 
 on:
   push:
@@ -8,7 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
+  build-and-publish:
+    permissions:
+      contents: write # needed for gh-pages publishing
     runs-on: ubuntu-latest
     steps:
     - name: setup-ollama
@@ -29,17 +31,13 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Cache content
-      id: cache-content
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-content
+    - name: Restore cached data
+      id: cached-content-restore
+      uses: actions/cache/restore@v4
       with:
-        path: ./cache
-        key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('./cache.items.json') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ env.cache-name }}-
-          ${{ runner.os }}-
+        path: |
+          .cache
+        key: ${{ runner.os }}-cached-content
 
     - name: Run static generator
       env:
@@ -56,3 +54,11 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         commit_message: ${{ github.event.head_commit.message }}
         publish_dir: ./dist
+    
+    - name: Save Cached Content
+      id: cached-content-save
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          .cache
+        key: ${{ steps.cached-content-restore.outputs.cache-primary-key }}
