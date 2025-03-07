@@ -26,10 +26,12 @@ let itemIdCounter = 1;
 
 export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
   console.log(`Fetching feed: ${feedConfig.name}`);
+
+  const pageSize = process.env.MAX_ITEMS_PER_FEED ? +process.env.MAX_ITEMS_PER_FEED : 10;
   
   try {
     const parsedFeed = await parser.parseURL(feedConfig.url);
-    const feedItems = parsedFeed.items;
+    const feedItems = parsedFeed.items.slice(0, pageSize);
 
     for (const item of feedItems) {
       // Skip if we already have this item (based on URL)
@@ -105,7 +107,7 @@ export async function updateAllFeeds(): Promise<void> {
   
   // Load existing items from JSON if available
   try {
-    const data = await fs.readFile(path.join(process.cwd(), 'static-generator/data/items.json'), 'utf-8');
+    const data = await fs.readFile(path.join(process.cwd(), '.cache/items.json'), 'utf-8');
     items = JSON.parse(data);
     itemIdCounter = Math.max(...items.map(item => item.id), 0) + 1;
     console.log(`Loaded ${items.length} existing items`);
@@ -119,9 +121,9 @@ export async function updateAllFeeds(): Promise<void> {
   }
   
   // Save items to JSON for future runs
-  await fs.mkdir(path.join(process.cwd(), 'static-generator/data'), { recursive: true });
+  await fs.mkdir(path.join(process.cwd(), '.cache/'), { recursive: true });
   await fs.writeFile(
-    path.join(process.cwd(), 'static-generator/data/items.json'),
+    path.join(process.cwd(), '.cache/items.json'),
     JSON.stringify(items, null, 2)
   );
   
