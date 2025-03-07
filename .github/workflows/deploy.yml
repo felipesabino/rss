@@ -12,7 +12,7 @@ on:
 jobs:
   deploy:
     permissions:
-      contents: write
+      contents: read
       pages: write
       id-token: write
 
@@ -52,7 +52,9 @@ jobs:
       with:
         path: |
           .cache
-        key: ${{ runner.os }}-cached-content
+        key: cached-content-folder-${{ github.run_id }}"
+        restore-keys: |
+          cached-content-folder-
 
     - name: Run static generator
       env:
