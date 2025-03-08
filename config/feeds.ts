@@ -5,7 +5,6 @@ export const feedConfigSchema = z.object({
   id: z.number(),
   name: z.string(),
   url: z.string().url(),
-  updateInterval: z.number().default(30), // minutes
 });
 
 export type FeedConfig = z.infer<typeof feedConfigSchema>;
@@ -16,19 +15,31 @@ export const feeds: FeedConfig[] = [
     id: 1,
     name: "Hacker News",
     url: "https://news.ycombinator.com/rss",
-    updateInterval: 30,
   },
   {
     id: 2,
     name: "The Verge",
     url: "https://www.theverge.com/rss/index.xml",
-    updateInterval: 60,
   },
   {
     id: 3,
     name: "Reddit /r/news",
     url: "https://www.reddit.com/r/news/.rss",
-    updateInterval: 30
+  },
+  {
+    id: 4,
+    name: "Wired (top stories)",
+    url: "https://www.wired.com/feed/rss",
+  },
+  {
+    id: 5,
+    name: "ARS Techinica (Technology Lab)",
+    url: "https://feeds.arstechnica.com/arstechnica/technology-lab",
+  },
+  {
+    id: 6,
+    name: "Techcrunch",
+    url: "https://techcrunch.com/feed/",
   }
   // Add more feeds as needed
 ];

@@ -34,7 +34,7 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
     const feedItems = parsedFeed.items.slice(0, pageSize);
 
     for (const item of feedItems) {
-      // Skip if we already have this item (based on URL)
+      // Skip if we already have this item in the current fetch (based on URL)
       if (items.some(i => i.url === item.link)) continue;
 
       console.log(`Processing item: ${item.title}`);
@@ -103,33 +103,45 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
 }
 
 export async function updateAllFeeds(): Promise<void> {
-  console.log('Starting feed updates...');
+  console.log('Updating all feeds...');
   
-  // Load existing items from JSON if available
+  // Store the current items temporarily before fetching new content
+  const oldItems = [...items];
+  
+  // Clear the items array to start fresh
+  items = [];
+  
+  // Load existing items from JSON if available (to get their IDs and avoid duplicates)
   try {
     const data = await fs.readFile(path.join(process.cwd(), '.cache/items.json'), 'utf-8');
-    items = JSON.parse(data);
-    itemIdCounter = Math.max(...items.map(item => item.id), 0) + 1;
-    console.log(`Loaded ${items.length} existing items`);
+    const cachedItems = JSON.parse(data) as Item[];
+    // We don't restore the items array here, just use it for reference
+    // Set the item counter to continue from the highest ID
+    if (cachedItems.length > 0) {
+      itemIdCounter = Math.max(...cachedItems.map(item => item.id), 0) + 1;
+      console.log(`Loaded ${cachedItems.length} cached items for reference`);
+    }
   } catch (err) {
-    console.log('No existing items found, starting fresh');
+    console.log('No cached items found or error reading cache');
+    // If no cache exists, start counter at 1
+    itemIdCounter = 1;
   }
-
-  // Process feeds sequentially to avoid overloading resources
+  
+  // Fetch all feeds
   for (const feed of feeds) {
     await fetchFeed(feed);
   }
   
-  // Save items to JSON for future runs
+  console.log(`Total items after update: ${items.length}`);
+  
+  // Save only current items to JSON for future runs
   await fs.mkdir(path.join(process.cwd(), '.cache/'), { recursive: true });
   await fs.writeFile(
     path.join(process.cwd(), '.cache/items.json'),
     JSON.stringify(items, null, 2)
   );
   
-  console.log('All feeds updated successfully');
-  
-  return;
+  console.log('Update complete!');
 }
 
 export function getItemsByFeed(): Record<number, Item[]> {

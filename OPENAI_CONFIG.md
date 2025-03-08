@@ -1,6 +1,6 @@
 # OpenAI API Configuration
 
-This project now supports using a custom OpenAI API endpoint via environment variables.
+This project supports using a custom OpenAI API endpoint via environment variables.
 
 ## Configuration
 
