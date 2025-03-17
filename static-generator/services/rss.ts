@@ -37,6 +37,10 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
       // Skip if we already have this item in the current fetch (based on URL)
       if (items.some(i => i.url === item.link)) continue;
 
+      // Skip if item is more than 24h old
+      const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+      if (new Date().getTime() - pubDate.getTime() > 24 * 60 * 60 * 1000) continue;
+
       console.log(`Processing item: ${item.title}`);
 
       try {
@@ -105,27 +109,8 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
 export async function updateAllFeeds(): Promise<void> {
   console.log('Updating all feeds...');
   
-  // Store the current items temporarily before fetching new content
-  const oldItems = [...items];
-  
   // Clear the items array to start fresh
   items = [];
-  
-  // Load existing items from JSON if available (to get their IDs and avoid duplicates)
-  try {
-    const data = await fs.readFile(path.join(process.cwd(), '.cache/items.json'), 'utf-8');
-    const cachedItems = JSON.parse(data) as Item[];
-    // We don't restore the items array here, just use it for reference
-    // Set the item counter to continue from the highest ID
-    if (cachedItems.length > 0) {
-      itemIdCounter = Math.max(...cachedItems.map(item => item.id), 0) + 1;
-      console.log(`Loaded ${cachedItems.length} cached items for reference`);
-    }
-  } catch (err) {
-    console.log('No cached items found or error reading cache');
-    // If no cache exists, start counter at 1
-    itemIdCounter = 1;
-  }
   
   // Fetch all feeds
   for (const feed of feeds) {
@@ -133,13 +118,6 @@ export async function updateAllFeeds(): Promise<void> {
   }
   
   console.log(`Total items after update: ${items.length}`);
-  
-  // Save only current items to JSON for future runs
-  await fs.mkdir(path.join(process.cwd(), '.cache/'), { recursive: true });
-  await fs.writeFile(
-    path.join(process.cwd(), '.cache/items.json'),
-    JSON.stringify(items, null, 2)
-  );
   
   console.log('Update complete!');
 }
