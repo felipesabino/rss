@@ -32,15 +32,20 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
   
   try {
     const parsedFeed = await parser.parseURL(feedConfig.url);
-    const feedItems = parsedFeed.items.slice(0, pageSize);
+
+    console.log(`Feed size: ${parsedFeed.items.length}`);
+
+    const feedItems = parsedFeed.items
+      // Skip if item is more than 24h old
+      .filter(item => new Date().getTime() - (item.pubDate ? new Date(item.pubDate).getTime() : new Date().getTime()) <= 24 * 60 * 60 * 1000 )
+      // used the max page size to retireve a subset of the items
+      .slice(0, pageSize);
+
+    console.log(`Page size: ${feedItems.length}`);
 
     for (const item of feedItems) {
       // Skip if we already have this item in the current fetch (based on URL)
       if (items.some(i => i.url === item.link)) continue;
-
-      // Skip if item is more than 24h old
-      const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
-      if (new Date().getTime() - pubDate.getTime() > 24 * 60 * 60 * 1000) continue;
 
       console.log(`Processing item: ${item.title}`);
 

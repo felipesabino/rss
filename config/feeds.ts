@@ -21,25 +21,25 @@ export const feeds: FeedConfig[] = [
     name: "The Verge",
     url: "https://www.theverge.com/rss/index.xml",
   },
-  // {
-  //   id: 3,
-  //   name: "Reddit /r/news",
-  //   url: "https://www.reddit.com/r/news/.rss",
-  // },
-  // {
-  //   id: 4,
-  //   name: "Wired (top stories)",
-  //   url: "https://www.wired.com/feed/rss",
-  // },
-  // {
-  //   id: 5,
-  //   name: "ARS Techinica (Technology Lab)",
-  //   url: "https://feeds.arstechnica.com/arstechnica/technology-lab",
-  // },
-  // {
-  //   id: 6,
-  //   name: "Techcrunch",
-  //   url: "https://techcrunch.com/feed/",
-  // }
+  {
+    id: 3,
+    name: "Reddit /r/news",
+    url: "https://www.reddit.com/r/news/.rss",
+  },
+  {
+    id: 4,
+    name: "Wired (top stories)",
+    url: "https://www.wired.com/feed/rss",
+  },
+  {
+    id: 5,
+    name: "ARS Techinica (Technology Lab)",
+    url: "https://feeds.arstechnica.com/arstechnica/technology-lab",
+  },
+  {
+    id: 6,
+    name: "Techcrunch",
+    url: "https://techcrunch.com/feed/",
+  }
   // Add more feeds as needed
 ];

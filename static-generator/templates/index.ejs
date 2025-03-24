@@ -10,7 +10,7 @@
     <div class="container">
       <div class="header">
         <h1>Brutalist Report knock-off</h1>
-        <p class="updated-at">Last updated: <%= new Date().toLocaleString() %></p>
+        <p class="updated-at">The day's headlines delivered to you without bullshit. Last updated <%= new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %> <%= new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }) %> (UTC).</p>
       </div>
       
       <div class="feeds-container">
@@ -29,6 +29,11 @@
                         <span class="feed-item-date">
                           (<%= formatDate(new Date(item.published)) %>)
                         </span>
+                      <% } %>
+                      <% if (item.commentsUrl) { %>
+                        <a href="<%= item.commentsUrl %>" target="_blank" rel="noopener noreferrer" class="feed-item-comments-link">
+                          [hn]
+                        </a>
                       <% } %>
                       <% if (item.hasSummary) { %>
                         <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[toggle ai summary]</span>
