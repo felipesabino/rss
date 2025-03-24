@@ -9,7 +9,10 @@
   <body>
     <div class="container">
       <div class="header">
-        <h1>Brutalist Report knock-off</h1>
+        <div class="header-top">
+          <h1>Brutalist Report knock-off</h1>
+          <button id="darkModeToggle" class="dark-mode-toggle">🌙</button>
+        </div>
         <p class="updated-at">The day's headlines delivered to you without bullshit. Last updated <%= new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %> <%= new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }) %> (UTC).</p>
       </div>
       
@@ -59,6 +62,26 @@
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
+        // Dark mode toggle functionality
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const body = document.body;
+        
+        // Check for saved preference
+        const isDarkMode = localStorage.getItem('darkMode') === 'true';
+        
+        // Set initial state
+        if (isDarkMode) {
+          body.classList.add('dark-mode');
+          darkModeToggle.textContent = '☀️';
+        }
+        
+        // Toggle dark mode
+        darkModeToggle.addEventListener('click', function() {
+          const isDark = body.classList.toggle('dark-mode');
+          darkModeToggle.textContent = isDark ? '☀️' : '🌙';
+          localStorage.setItem('darkMode', isDark);
+        });
+        
         // Add click event listeners to all summary toggle elements
         document.querySelectorAll('.feed-item-summary-toggle').forEach(function(element) {
           element.addEventListener('click', function() {
