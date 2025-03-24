@@ -15,6 +15,7 @@ export interface Item {
   summary?: string;
   published: Date;
   hasSummary: boolean;
+  commentsUrl?: string;  // New field for Hacker News comments URL
 }
 
 // Create a parser instance
@@ -79,7 +80,8 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
           url: item.link!,
           content,
           published: item.pubDate ? new Date(item.pubDate) : new Date(),
-          hasSummary: false
+          hasSummary: false,
+          commentsUrl: item.comments  // Extract comments URL from feed item
         };
 
         if (shouldSummarize) {

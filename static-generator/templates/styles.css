@@ -100,6 +100,11 @@ body {
   cursor: pointer;
 }
 
+.feed-item-summary-not-available {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
 .feed-item-summary-toggle:hover {
   text-decoration: underline;
 }
@@ -109,6 +114,17 @@ body {
   padding-left: 0.5rem;
   font-size: 0.75rem;
   color: var(--muted-foreground);
+}
+
+.feed-item-comments-link {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  margin-right: 0.5rem;
+}
+
+.feed-item-comments-link:hover {
+  text-decoration: underline;
 }
 
 .hidden {

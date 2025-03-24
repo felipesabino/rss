@@ -31,7 +31,9 @@
                         </span>
                       <% } %>
                       <% if (item.hasSummary) { %>
-                        <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[ai]</span>
+                        <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[toggle ai summary]</span>
+                      <% } else { %>
+                          <span class="feed-item-summary-not-available" data-item-id="<%= item.id %>">[no summary available]</span>
                       <% } %>
                     </div>
                     <% if (item.summary) { %>
