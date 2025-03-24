@@ -38,6 +38,8 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
     const feedItems = parsedFeed.items
       // Skip if item is more than 24h old
       .filter(item => new Date().getTime() - (item.pubDate ? new Date(item.pubDate).getTime() : new Date().getTime()) <= 24 * 60 * 60 * 1000 )
+      // sort items by published date, place latest first and items with no published date at the end
+      .sort((i, j) => i.pubDate && j.pubDate ? (i.pubDate > j.pubDate ? -1 : 1) : -1)
       // used the max page size to retireve a subset of the items
       .slice(0, pageSize);
 
