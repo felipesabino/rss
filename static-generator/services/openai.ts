@@ -16,7 +16,7 @@ export async function summarizeText(text: string): Promise<string> {
       messages: [
         {
           role: "system",
-          content: "You are a skilled content summarizer. Create a concise summary of the provided text. Focus on the key points and main ideas."
+          content: "You are a skilled content summarizer. Create a concise summary of the provided text. Focus on the key points and main ideas, and regardless of the text's language, provide the summary in english."
         },
         {
           role: "user",
