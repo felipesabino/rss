@@ -16,9 +16,19 @@
         <p class="updated-at">The day's headlines delivered to you without bullshit. Last updated <%= new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %> <%= new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }) %> (UTC).</p>
       </div>
       
+      <div class="category-filter">
+        <ul class="category-list">
+          <li class="category-item all active" data-category="all">All</li>
+          <% categories.forEach(function(category) { %>
+            <li class="category-item" data-category="<%= category %>"><%= category.charAt(0).toUpperCase() + category.slice(1) %></li>
+          <% }); %>
+        </ul>
+        <div class="category-help">Click to select multiple categories. Click "All" to reset.</div>
+      </div>
+      
       <div class="feeds-container">
         <% feeds.forEach(function(feed) { %>
-          <div class="feed">
+          <div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
             <h3 class="feed-title"><%= feed.name %></h3>
             <div class="feed-items">
               <% if (itemsByFeed[feed.id] && itemsByFeed[feed.id].length) { %>
@@ -58,6 +68,10 @@
           </div>
         <% }); %>
       </div>
+      
+      <div class="footer">
+        <p class="source-code"><span>&lt;&gt;</span> <a href="https://github.com/felipesabino/rss" target="_blank" rel="noopener noreferrer">source code at GitHub</a></p>
+      </div>
     </div>
 
     <script>
@@ -90,6 +104,86 @@
             if (summaryElement) {
               summaryElement.classList.toggle('hidden');
             }
+          });
+        });
+        
+        // Category filter functionality
+        const categoryItems = document.querySelectorAll('.category-item');
+        const feeds = document.querySelectorAll('.feed');
+        
+        // Get selected categories from localStorage or default to ['all']
+        let selectedCategories = [];
+        try {
+          const savedCategories = localStorage.getItem('selectedCategories');
+          selectedCategories = savedCategories ? JSON.parse(savedCategories) : ['all'];
+        } catch (e) {
+          selectedCategories = ['all'];
+        }
+        
+        // Function to filter feeds by categories
+        function filterFeeds(categories) {
+          // If 'all' is selected, clear other selections
+          if (categories.includes('all')) {
+            categories = ['all'];
+          }
+          
+          // If no categories are selected, default to 'all'
+          if (categories.length === 0) {
+            categories = ['all'];
+          }
+          
+          // Update active state on category items
+          categoryItems.forEach(item => {
+            const itemCategory = item.getAttribute('data-category');
+            if (categories.includes(itemCategory)) {
+              item.classList.add('active');
+            } else {
+              item.classList.remove('active');
+            }
+          });
+          
+          // Show/hide feeds based on selected categories
+          feeds.forEach(feed => {
+            if (categories.includes('all')) {
+              feed.style.display = '';
+            } else {
+              const feedCategories = feed.getAttribute('data-categories').split(' ').map(cat => decodeURIComponent(cat));
+              // Show feed if it matches ANY of the selected categories
+              const hasMatchingCategory = feedCategories.some(cat => categories.includes(cat));
+              feed.style.display = hasMatchingCategory ? '' : 'none';
+            }
+          });
+          
+          // Save selection to localStorage
+          localStorage.setItem('selectedCategories', JSON.stringify(categories));
+        }
+        
+        // Apply initial filter based on saved preference
+        filterFeeds(selectedCategories);
+        
+        // Add click event listeners to category items
+        categoryItems.forEach(item => {
+          item.addEventListener('click', function() {
+            const category = this.getAttribute('data-category');
+            
+            // Handle 'all' category specially
+            if (category === 'all') {
+              selectedCategories = ['all'];
+            } else {
+              // Remove 'all' if it's currently selected
+              if (selectedCategories.includes('all')) {
+                selectedCategories = [];
+              }
+              
+              // Toggle the selected category
+              if (selectedCategories.includes(category)) {
+                selectedCategories = selectedCategories.filter(cat => cat !== category);
+              } else {
+                selectedCategories.push(category);
+              }
+            }
+            
+            filterFeeds(selectedCategories);
           });
         });
       });

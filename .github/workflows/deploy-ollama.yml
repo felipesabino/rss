@@ -1,12 +1,14 @@
 name: Build and Publish
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  schedule:
-    - cron: "0 4,7,10,13,15,18 * * *"   # <=== Runs every 3hrs from 6am to 6pm
+  # # Uncomment the following lines to enable automatic deployment on push or pull request
+  # # using ollama to generate content, instead of openai
+  # push:
+  #   branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
+  # schedule:
+  #   - cron: "0 4,7,10,13,15,18 * * *"   # <=== Runs every 3hrs from 6am to 6pm
   workflow_dispatch:
 
 jobs:
@@ -28,6 +30,11 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
+    - name: setup-ollama
+      uses: ai-action/setup-ollama@v1.1.3
+
+    - name: Run LLM
+      run: ollama run llama3.2 "" # https://github.com/ollama/ollama/blob/main/docs/faq.md#how-can-i-preload-a-model-into-ollama-to-get-faster-response-times
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -47,15 +54,15 @@ jobs:
       with:
         path: |
           .cache
-        key: cached-content-folder-${{ github.run_id }}
+        key: cached-content-folder-${{ github.run_id }}"
         restore-keys: |
           cached-content-folder-
 
     - name: Run static generator
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        OPENAI_API_BASE_URL: "https://api.openai.com/v1/"
-        OPENAI_MODEL_NAME: gpt-4.1-nano
+        OPENAI_API_KEY: "dummy-key-not-used-by-ollama"
+        OPENAI_API_BASE_URL: "http://localhost:11434/v1/"
+        OPENAI_MODEL_NAME: llama3.2
         MAX_ITEMS_PER_FEED: 20
       run: |
         npm run build

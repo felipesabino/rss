@@ -35,7 +35,7 @@ body {
 }
 
 .header {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -58,11 +58,65 @@ body {
 .updated-at {
   text-align: left;
   margin-top: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   font-size: 0.9rem;
-  color: #555;
+  color: var(--muted-foreground);
   max-width: 85%;
   line-height: 1.4;
+}
+
+/* Category filter styles */
+.category-filter {
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 0.5rem;
+}
+
+.category-help {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  margin-top: 0.5rem;
+  margin-left: 0.25rem;
+}
+
+.category-list {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+}
+
+.category-item {
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  background-color: var(--border);
+  color: var(--foreground);
+  transition: background-color 0.2s, color 0.2s;
+  user-select: none;
+}
+
+.category-item:hover {
+  background-color: var(--muted-foreground);
+  color: var(--background);
+}
+
+.category-item.active {
+  background-color: var(--foreground);
+  color: var(--background);
+}
+
+.category-item.all {
+  background-color: transparent;
+  border: 1px solid var(--border);
+}
+
+.category-item.all.active {
+  background-color: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
 }
 
 .feeds-container {
@@ -179,4 +233,31 @@ body {
 
 .dark-mode-toggle:hover {
   background-color: var(--border);
+}
+
+/* Footer styles */
+.footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.source-code {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.source-code span {
+  font-family: monospace;
+  margin-right: 0.25rem;
+}
+
+.source-code a {
+  color: var(--muted-foreground);
+  text-decoration: none;
+}
+
+.source-code a:hover {
+  text-decoration: underline;
 }

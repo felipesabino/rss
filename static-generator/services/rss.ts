@@ -1,9 +1,9 @@
-import Parser from 'rss-parser';
-import fs from 'fs/promises';
-import path from 'path';
 import { contentExtractor } from './content';
 import { summarizeText } from './openai';
 import { feeds } from '../../config/feeds';
+import { loadCache, saveCache, getCachedItem, setCachedItem, cleanCache, Cache } from './cache';
+import { parseFeed } from './feed-parser';
+import { parseDate } from './date-parser';
 
 // Define item type
 export interface Item {
@@ -18,34 +18,56 @@ export interface Item {
   commentsUrl?: string;  // New field for Hacker News comments URL
 }
 
-// Create a parser instance
-const parser = new Parser();
-
 // Storage for items
 let items: Item[] = [];
 let itemIdCounter = 1;
+
+// Cache instance
+let cache: Cache;
+
+// Date parsing is now handled by the date-parser module
 
 export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
   console.log(`Fetching feed: ${feedConfig.name}`);
 
   const pageSize = process.env.MAX_ITEMS_PER_FEED ? +process.env.MAX_ITEMS_PER_FEED : 10;
   
+  // Ensure cache is loaded
+  if (!cache) {
+    cache = await loadCache();
+    console.log('Cache loaded');
+  }
+  
   try {
-    const parsedFeed = await parser.parseURL(feedConfig.url);
+    // Use the robust parseFeed function from feed-parser.ts
+    const feedItems = await parseFeed(feedConfig.url, feedConfig.name);
 
-    console.log(`Feed size: ${parsedFeed.items.length}`);
+    console.log(`Feed size: ${feedItems.length}`);
 
-    const feedItems = parsedFeed.items
-      // Skip if item is more than 24h old
-      .filter(item => new Date().getTime() - (item.pubDate ? new Date(item.pubDate).getTime() : new Date().getTime()) <= 24 * 60 * 60 * 1000 )
-      // sort items by published date, place latest first and items with no published date at the end
-      .sort((i, j) => i.pubDate && j.pubDate ? (i.pubDate > j.pubDate ? -1 : 1) : -1)
-      // used the max page size to retireve a subset of the items
+    // Skip if item is more than 24h old and sort by published date
+    const filteredItems = feedItems
+      .filter((item: any) => {
+        if (!item.pubDate) return true; // Keep items with no date
+        
+        const itemDate = parseDate(item.pubDate);
+        const now = new Date();
+        const timeDiff = now.getTime() - itemDate.getTime();
+        return timeDiff <= 24 * 60 * 60 * 1000;
+      })
+      .sort((i: any, j: any) => {
+        if (!i.pubDate && !j.pubDate) return 0;
+        if (!i.pubDate) return 1; // Items with no date go to the end
+        if (!j.pubDate) return -1;
+        
+        const dateI = parseDate(i.pubDate);
+        const dateJ = parseDate(j.pubDate);
+        return dateI > dateJ ? -1 : 1; // Descending order (newest first)
+      })
       .slice(0, pageSize);
 
-    console.log(`Page size: ${feedItems.length}`);
+    console.log(`Page size: ${filteredItems.length}`);
 
-    for (const item of feedItems) {
+    for (const item of filteredItems) {
       // Skip if we already have this item in the current fetch (based on URL)
       if (items.some(i => i.url === item.link)) continue;
 
@@ -69,16 +91,48 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
           url = item.link!;  // For other feeds, use the item link
         }
         
+        // Check if the content is in the cache
         let content = '';
-        try {
-          content = await contentExtractor(url);
-        } catch (err: any) {
-          console.error(`Failed to extract content: ${err.message}`);
-          continue;
-        }
+        let summary: string | undefined;
+        let hasSummary = false;
         
-        // Only summarize if content is substantial
-        const shouldSummarize = content.length > 500;
+        const cachedItem = getCachedItem(cache, url);
+        
+        if (cachedItem) {
+          console.log(`Using cached content for: ${url}`);
+          content = cachedItem.content;
+          summary = cachedItem.summary;
+          hasSummary = !!summary;
+        } else {
+          console.log(`Fetching content for: ${url}`);
+          try {
+            content = await contentExtractor(url);
+            
+            // Only summarize if content is substantial
+            const shouldSummarize = content.length > 500;
+            
+            if (shouldSummarize) {
+              try {
+                summary = await summarizeText(content);
+                hasSummary = true;
+                
+                // Cache the content and summary
+                setCachedItem(cache, url, content, summary);
+              } catch (err: any) {
+                console.error(`Failed to summarize item: ${err.message}`);
+                
+                // Cache just the content
+                setCachedItem(cache, url, content);
+              }
+            } else {
+              // Cache just the content
+              setCachedItem(cache, url, content);
+            }
+          } catch (err: any) {
+            console.error(`Failed to extract content: ${err.message}`);
+            continue;
+          }
+        }
         
         const newItem: Item = {
           id: itemIdCounter++,
@@ -86,20 +140,11 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
           title: item.title!,
           url: item.link!,
           content,
-          published: item.pubDate ? new Date(item.pubDate) : new Date(),
-          hasSummary: false,
+          summary,
+          published: item.pubDate ? parseDate(item.pubDate) : new Date(),
+          hasSummary,
           commentsUrl: item.comments  // Extract comments URL from feed item
         };
-
-        if (shouldSummarize) {
-          try {
-            const summary = await summarizeText(content);
-            newItem.summary = summary;
-            newItem.hasSummary = true;
-          } catch (err: any) {
-            console.error(`Failed to summarize item: ${err.message}`);
-          }
-        }
 
         items.push(newItem);
         console.log(`Added item: ${newItem.title}`);
@@ -118,6 +163,12 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
 export async function updateAllFeeds(): Promise<void> {
   console.log('Updating all feeds...');
   
+  // Load the cache
+  cache = await loadCache();
+  
+  // Clean expired items from the cache
+  cache = cleanCache(cache);
+  
   // Clear the items array to start fresh
   items = [];
   
@@ -125,6 +176,9 @@ export async function updateAllFeeds(): Promise<void> {
   for (const feed of feeds) {
     await fetchFeed(feed);
   }
+  
+  // Save the updated cache
+  await saveCache(cache);
   
   console.log(`Total items after update: ${items.length}`);
   
@@ -134,7 +188,17 @@ export async function updateAllFeeds(): Promise<void> {
 export function getItemsByFeed(): Record<number, Item[]> {
   const itemsByFeed: Record<number, Item[]> = {};
   for (const feed of feeds) {
-    itemsByFeed[feed.id] = items.filter(item => item.feedId === feed.id).sort((i,j) => i.published < j.published ? 1 : 0);
+    itemsByFeed[feed.id] = items
+      .filter(item => item.feedId === feed.id)
+      .sort((i, j) => {
+        // Sort in descending order (newest first)
+        if (!i.published && !j.published) return 0;
+        if (!i.published) return 1; // Items with no date go to the end
+        if (!j.published) return -1;
+        
+        // Use getTime for consistent comparison
+        return j.published.getTime() - i.published.getTime();
+      });
   }
   return itemsByFeed;
 }

@@ -10,7 +10,11 @@ export async function contentExtractor(url: string): Promise<string> {
   };
   
   try {
-    const response = await got(urlProcessed);
+    const response = await got(urlProcessed, {
+      timeout: {
+        request: 10000 // 10 seconds timeout
+      }
+    });
     const html = response.body;
     const $ = cheerio.load(html);
 

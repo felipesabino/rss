@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { feeds } from '../config/feeds';
+import { feeds, getAllCategories } from '../config/feeds';
 import ejs from 'ejs';
 import { updateAllFeeds, getItemsByFeed } from './services/rss';
 
@@ -21,9 +21,13 @@ async function generateStaticSite(): Promise<void> {
   const templatePath = path.join(process.cwd(), 'static-generator/templates/index.ejs');
   const template = await fs.readFile(templatePath, 'utf-8');
   
+  // Get all categories
+  const categories = getAllCategories();
+  
   const html = ejs.render(template, {
     feeds,
     itemsByFeed,
+    categories,
     formatDate: (date: Date) => {
       return date.toLocaleDateString(['fr-FR'], {hour: '2-digit', minute:'2-digit'});
     }
@@ -48,6 +52,8 @@ async function main() {
     await generateStaticSite();
     
     console.log('Process completed successfully');
+    // Explicitly exit the process to prevent hanging
+    process.exit(0);
   } catch (err) {
     console.error('Failed to generate static site:', err);
     process.exit(1);
