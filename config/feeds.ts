@@ -31,12 +31,6 @@ export const feeds: FeedConfig[] = [
     categories: ["world news"],
   },
   {
-    id: 4,
-    name: "Wired (top stories)",
-    url: "https://www.wired.com/feed/rss",
-    categories: ["tech"],
-  },
-  {
     id: 5,
     name: "ARS Techinica (Technology Lab)",
     url: "https://feeds.arstechnica.com/arstechnica/technology-lab",
@@ -85,12 +79,6 @@ export const feeds: FeedConfig[] = [
     categories: ["france", "regional news", "europe"],
   },
   {
-    id: 16,
-    name: "G1 (Globo)",
-    url: "https://g1.globo.com/rss/g1/",
-    categories: ["brazil", "regional news"],
-  },
-  {
     id: 12,
     name: "Folha de São Paulo",
     url: "https://feeds.folha.uol.com.br/poder/rss091.xml",
@@ -101,6 +89,18 @@ export const feeds: FeedConfig[] = [
     name: "UOL Notícias",
     url: "https://rss.uol.com.br/feed/noticias.xml",
     categories: ["brazil", "regional news"],
+  },
+  {
+    id: 17,
+    name: "Reddit /r/brasil",
+    url: "https://www.reddit.com/r/brasil.rss",
+    categories: ["brazil", "regional news"],
+  }, 
+  {
+    id: 18,
+    name: "Reddit /r/singularity",
+    url: "https://www.reddit.com/r/singularity.rss",
+    categories: ["tech"],
   },
 ];
 
