@@ -29,7 +29,16 @@
       <div class="feeds-container">
         <% feeds.forEach(function(feed) { %>
           <div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
-            <h3 class="feed-title"><%= feed.name %></h3>
+            <h3 class="feed-title">
+              <a href="<%= feedMetadata[feed.id]?.siteUrl || feed.url.replace(/\/rss\/?.*$|\.rss$|\/feed\/?.*$|\.xml$/, '/') %>" target="_blank" rel="noopener noreferrer" class="feed-title-link">
+                <% if (feedMetadata[feed.id]?.iconUrl) { %>
+                  <img src="<%= feedMetadata[feed.id].iconUrl %>" alt="<%= feed.name %> icon" class="feed-icon" />
+                <% } else { %>
+                  <img src="https://www.google.com/s2/favicons?domain=<%= new URL(feed.url).hostname %>" alt="<%= feed.name %> icon" class="feed-icon" />
+                <% } %>
+                <%= feed.name %>
+              </a>
+            </h3>
             <div class="feed-items">
               <% if (itemsByFeed[feed.id] && itemsByFeed[feed.id].length) { %>
                 <% itemsByFeed[feed.id].forEach(function(item) { %>

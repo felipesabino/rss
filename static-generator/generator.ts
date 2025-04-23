@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { feeds, getAllCategories } from '../config/feeds';
 import ejs from 'ejs';
-import { updateAllFeeds, getItemsByFeed } from './services/rss';
+import { updateAllFeeds, getItemsByFeed, getFeedMetadata } from './services/rss';
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -17,6 +17,9 @@ async function generateStaticSite(): Promise<void> {
   // Get items by feed
   const itemsByFeed = getItemsByFeed();
   
+  // Get feed metadata
+  const feedMetadata = getFeedMetadata();
+  
   // Load and render the template
   const templatePath = path.join(process.cwd(), 'static-generator/templates/index.ejs');
   const template = await fs.readFile(templatePath, 'utf-8');
@@ -27,6 +30,7 @@ async function generateStaticSite(): Promise<void> {
   const html = ejs.render(template, {
     feeds,
     itemsByFeed,
+    feedMetadata,
     categories,
     formatDate: (date: Date) => {
       return date.toLocaleDateString(['fr-FR'], {hour: '2-digit', minute:'2-digit'});

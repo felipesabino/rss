@@ -2,7 +2,7 @@ import { contentExtractor } from './content';
 import { summarizeText } from './openai';
 import { feeds } from '../../config/feeds';
 import { loadCache, saveCache, getCachedItem, setCachedItem, cleanCache, Cache } from './cache';
-import { parseFeed } from './feed-parser';
+import { parseFeed, parseFeedWithMetadata, FeedMetadata } from './feed-parser';
 import { parseDate } from './date-parser';
 
 // Define item type
@@ -18,9 +18,10 @@ export interface Item {
   commentsUrl?: string;  // New field for Hacker News comments URL
 }
 
-// Storage for items
+// Storage for items and metadata
 let items: Item[] = [];
 let itemIdCounter = 1;
+let feedMetadata: Record<number, FeedMetadata> = {};
 
 // Cache instance
 let cache: Cache;
@@ -39,9 +40,12 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
   }
   
   try {
-    // Use the robust parseFeed function from feed-parser.ts
-    const feedItems = await parseFeed(feedConfig.url, feedConfig.name);
-
+    // Use the parseFeedWithMetadata function to get both items and metadata
+    const { items: feedItems, metadata } = await parseFeedWithMetadata(feedConfig.url, feedConfig.name);
+    
+    // Store the metadata for this feed
+    feedMetadata[feedConfig.id] = metadata;
+    
     console.log(`Feed size: ${feedItems.length}`);
 
     // Skip if item is more than 24h old and sort by published date
@@ -205,4 +209,8 @@ export function getItemsByFeed(): Record<number, Item[]> {
 
 export function getAllItems(): Item[] {
   return items;
+}
+
+export function getFeedMetadata(): Record<number, FeedMetadata> {
+  return feedMetadata;
 }

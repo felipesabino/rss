@@ -25,14 +25,21 @@ export interface FeedItem {
   comments?: string;
 }
 
+export interface FeedMetadata {
+  title?: string;
+  description?: string;
+  siteUrl?: string;
+  iconUrl?: string;
+}
+
 export interface HttpResponse {
   headers: Record<string, string | string[] | undefined>;
   body: Buffer;
 }
 
 export interface FeedParser {
-  parseURL(url: string): Promise<{ items: any[] }>;
-  parseString(content: string): Promise<{ items: any[] }>;
+  parseURL(url: string): Promise<Parser.Output<any>>;
+  parseString(content: string): Promise<Parser.Output<any>>;
 }
 
 export interface HttpClient {
@@ -173,25 +180,53 @@ export class FeedParserService {
    * 
    * @param feedUrl The URL of the feed to parse
    * @param feedName The name of the feed (for logging purposes)
-   * @returns An array of normalized feed items
+   * @returns An array of normalized feed items for backward compatibility with tests
    */
   async parseFeed(feedUrl: string, feedName: string): Promise<FeedItem[]> {
     try {
+      // Initialize metadata object
+      const metadata: FeedMetadata = {
+        siteUrl: '',
+        iconUrl: ''
+      };
+      
       // Strategy 1: Try the standard parser first
       try {
         const parsedFeed = await this.feedParser.parseURL(feedUrl);
         if (parsedFeed.items && Array.isArray(parsedFeed.items)) {
           console.log(`Successfully parsed with rss-parser: ${parsedFeed.items.length} items`);
+          
+          // Extract metadata from the parsed feed (for internal use)
+          if (parsedFeed.link) {
+            metadata.siteUrl = parsedFeed.link;
+          }
+          if (parsedFeed.image && parsedFeed.image.url) {
+            metadata.iconUrl = parsedFeed.image.url;
+          }
+          if (parsedFeed.title) {
+            metadata.title = parsedFeed.title;
+          }
+          if (parsedFeed.description) {
+            metadata.description = parsedFeed.description;
+          }
+          
+          // Store metadata for later retrieval
+          this._lastMetadata = metadata;
+          
           return parsedFeed.items;
         }
       } catch (parseError: any) {
         console.log(`Standard parsing failed for ${feedName}: ${parseError.message}`);
         
         // Strategy 2: If standard parsing fails, try our custom cheerio parser
-        const cheerioItems = await this.parseFeedWithCheerio(feedUrl);
+        const result = await this.parseFeedWithCheerio(feedUrl);
         
-        if (cheerioItems.length > 0) {
-          return cheerioItems;
+        if (Array.isArray(result)) {
+          return result;
+        } else if (result.items.length > 0) {
+          // Store metadata for later retrieval
+          this._lastMetadata = result.metadata;
+          return result.items;
         }
         
         // Strategy 3: Try to fetch as plain text and look for RSS links
@@ -213,11 +248,19 @@ export class FeedParserService {
           console.log(`Found RSS link in HTML: ${rssLink}`);
           // Resolve relative URL if needed
           const resolvedUrl = new URL(rssLink, feedUrl).toString();
-          return await this.parseFeedWithCheerio(resolvedUrl);
+          const cheerioResult = await this.parseFeedWithCheerio(resolvedUrl);
+          
+          if (Array.isArray(cheerioResult)) {
+            return cheerioResult;
+          } else {
+            // Store metadata for later retrieval
+            this._lastMetadata = cheerioResult.metadata;
+            return cheerioResult.items;
+          }
         }
       }
       
-      // If all strategies fail, return an empty array
+      // If all strategies fail, return empty array
       return [];
     } catch (error: any) {
       console.error(`Failed to parse feed ${feedName}: ${error.message}`);
@@ -225,14 +268,42 @@ export class FeedParserService {
     }
   }
 
+  // Store the last parsed metadata for retrieval by parseFeedWithMetadata
+  private _lastMetadata: FeedMetadata = {
+    siteUrl: '',
+    iconUrl: ''
+  };
+
+  /**
+   * Get the metadata from the last parsed feed
+   */
+  getLastMetadata(): FeedMetadata {
+    return this._lastMetadata;
+  }
+
+  /**
+   * Parse a feed URL and return both items and metadata
+   * 
+   * @param feedUrl The URL of the feed to parse
+   * @param feedName The name of the feed (for logging purposes)
+   * @returns An object containing feed items and metadata
+   */
+  async parseFeedWithMetadata(feedUrl: string, feedName: string): Promise<{ items: FeedItem[], metadata: FeedMetadata }> {
+    const items = await this.parseFeed(feedUrl, feedName);
+    return {
+      items,
+      metadata: this._lastMetadata
+    };
+  }
+
   /**
    * Parse feed content using cheerio to handle different feed formats
    * This is a fallback method when the standard RSS parser fails
    * 
    * @param feedUrl The URL of the feed to parse
-   * @returns An array of normalized feed items
+   * @returns An array of feed items for backward compatibility with tests
    */
-  private async parseFeedWithCheerio(feedUrl: string): Promise<FeedItem[]> {
+  private async parseFeedWithCheerio(feedUrl: string): Promise<FeedItem[] | { items: FeedItem[], metadata: FeedMetadata }> {
     try {
       console.log(`Fetching feed with cheerio: ${feedUrl}`);
       const response = await this.httpClient.get(feedUrl, { 
@@ -246,6 +317,35 @@ export class FeedParserService {
       const $ = this.htmlParser.load(content, { xmlMode: true });
       
       const feedItems: FeedItem[] = [];
+      const metadata: FeedMetadata = {
+        siteUrl: '',
+        iconUrl: ''
+      };
+      
+      // Extract feed metadata
+      // Try to get site URL from alternate link
+      const alternateLink = $('link[rel="alternate"]').attr('href');
+      if (alternateLink) {
+        metadata.siteUrl = alternateLink;
+      }
+      
+      // Try to get icon URL
+      const iconUrl = $('icon').text();
+      if (iconUrl) {
+        metadata.iconUrl = iconUrl;
+      }
+      
+      // Try to get feed title
+      const feedTitle = $('channel > title').text() || $('feed > title').text();
+      if (feedTitle) {
+        metadata.title = feedTitle;
+      }
+      
+      // Try to get feed description
+      const feedDescription = $('channel > description').text() || $('feed > subtitle').text();
+      if (feedDescription) {
+        metadata.description = feedDescription;
+      }
       
       // Try to parse as RSS
       $('item').each((index: number, element: any) => {
@@ -281,10 +381,16 @@ export class FeedParserService {
       }
       
       console.log(`Parsed ${feedItems.length} items with cheerio`);
-      return feedItems;
+      return { items: feedItems, metadata };
     } catch (error: any) {
       console.error(`Error parsing feed with cheerio: ${error.message}`);
-      return [];
+      return { 
+        items: [],
+        metadata: {
+          siteUrl: '',
+          iconUrl: ''
+        }
+      };
     }
   }
 
@@ -328,4 +434,15 @@ const feedParserService = new FeedParserService(feedParser, httpClient, htmlPars
  */
 export async function parseFeed(feedUrl: string, feedName: string): Promise<FeedItem[]> {
   return await feedParserService.parseFeed(feedUrl, feedName);
+}
+
+/**
+ * Parse a feed URL and return both items and metadata
+ * 
+ * @param feedUrl The URL of the feed to parse
+ * @param feedName The name of the feed (for logging purposes)
+ * @returns An object containing feed items and metadata
+ */
+export async function parseFeedWithMetadata(feedUrl: string, feedName: string): Promise<{ items: FeedItem[], metadata: FeedMetadata }> {
+  return await feedParserService.parseFeedWithMetadata(feedUrl, feedName);
 }

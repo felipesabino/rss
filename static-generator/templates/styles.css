@@ -139,6 +139,26 @@ body {
   font-size: 1.125rem;
   font-weight: 500;
   margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.feed-title-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--foreground);
+}
+
+.feed-title-link:hover {
+  text-decoration: underline;
+}
+
+.feed-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
 .feed-items {
