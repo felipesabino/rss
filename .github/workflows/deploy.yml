@@ -47,9 +47,9 @@ jobs:
       with:
         path: |
           .cache
-        key: cached-content-folder-${{ github.run_id }}
+        key: cached-content-${{ github.run_id }}
         restore-keys: |
-          cached-content-folder-
+          cached-content-
 
     - name: Run static generator
       env:
