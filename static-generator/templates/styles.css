@@ -50,6 +50,12 @@ body {
   margin-bottom: 0.5rem;
 }
 
+.header-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .header h1 {
   font-size: 2rem;
   font-weight: bold;
@@ -198,9 +204,50 @@ body {
   cursor: pointer;
 }
 
-.feed-item-summary-not-available {
+.feed-item-summary-not-available,
+.feed-item-summary-skipped,
+.feed-item-summary-error {
   font-size: 0.75rem;
   color: var(--muted-foreground);
+}
+
+.feed-item-summary-skipped {
+  color: #9c27b0; /* Purple for general media content */
+  cursor: help;
+}
+
+.feed-item-media-image {
+  color: #2196f3; /* Blue for images */
+}
+
+.feed-item-media-video {
+  color: #f44336; /* Red for videos */
+}
+
+.feed-item-media-audio {
+  color: #4caf50; /* Green for audio */
+}
+
+.feed-item-media-pdf,
+.feed-item-media-document {
+  color: #ff9800; /* Orange for PDFs and documents */
+}
+
+.feed-item-media-archive {
+  color: #795548; /* Brown for archives */
+}
+
+.feed-item-media-error {
+  color: #f44336; /* Red for errors */
+}
+
+.feed-item-media-unknown {
+  color: #9e9e9e; /* Grey for unknown types */
+}
+
+.feed-item-summary-error {
+  color: #f44336; /* Red for errors */
+  cursor: help;
 }
 
 .feed-item-summary-toggle:hover {
@@ -253,6 +300,51 @@ body {
 
 .dark-mode-toggle:hover {
   background-color: var(--border);
+}
+
+/* Good Vibes Only button */
+.good-vibes-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.good-vibes-toggle:hover {
+  background-color: var(--border);
+}
+
+.good-vibes-toggle.active {
+  background-color: #4caf50;
+  color: white;
+  border-color: #4caf50;
+  font-weight: bold;
+}
+
+/* Sentiment indicators */
+.feed-item-sentiment {
+  font-size: 1rem;
+  margin-left: 0.5rem;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.feed-item-sentiment.positive {
+  color: #4caf50;
+}
+
+.feed-item-sentiment.negative {
+  color: #9e9e9e;
+}
+
+.no-positive-items {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  font-style: italic;
 }
 
 /* Footer styles */

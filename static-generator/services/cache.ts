@@ -6,6 +6,8 @@ export interface CacheItem {
   url: string;
   content: string;
   summary?: string;
+  isPositive?: boolean;
+  mediaType?: string;
   timestamp: number;
 }
 
@@ -80,11 +82,13 @@ export function getCachedItem(cache: Cache, url: string): CacheItem | null {
 /**
  * Add or update an item in the cache
  */
-export function setCachedItem(cache: Cache, url: string, content: string, summary?: string): void {
+export function setCachedItem(cache: Cache, url: string, content: string, summary?: string, isPositive?: boolean, mediaType?: string): void {
   cache.items[url] = {
     url,
     content,
     summary,
+    isPositive,
+    mediaType,
     timestamp: Date.now()
   };
 }

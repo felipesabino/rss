@@ -11,7 +11,10 @@
       <div class="header">
         <div class="header-top">
           <h1>Brutalist Report knock-off</h1>
-          <button id="darkModeToggle" class="dark-mode-toggle">🌙</button>
+          <div class="header-buttons">
+            <button id="goodVibesToggle" class="good-vibes-toggle">Good Vibes Only</button>
+            <button id="darkModeToggle" class="dark-mode-toggle">🌙</button>
+          </div>
         </div>
         <p class="updated-at">The day's headlines delivered to you without bullshit. Last updated <%= new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %> <%= new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }) %> (UTC).</p>
       </div>
@@ -42,7 +45,9 @@
             <div class="feed-items">
               <% if (itemsByFeed[feed.id] && itemsByFeed[feed.id].length) { %>
                 <% itemsByFeed[feed.id].forEach(function(item) { %>
-                  <div class="feed-item">
+                  <div class="feed-item" data-positive="<%= item.isPositive === true ? 'true' : 'false' %>">
+                    <% /* Debug info: */ %>
+                    <!-- Item ID: <%= item.id %>, isPositive: <%= item.isPositive %> -->
                     <div class="feed-item-header">
                       <a href="<%= item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-link">
                         <%= item.title %>
@@ -59,8 +64,29 @@
                       <% } %>
                       <% if (item.hasSummary) { %>
                         <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[toggle ai summary]</span>
+                      <% } else if (item.mediaType) { %>
+                        <span class="feed-item-summary-skipped feed-item-media-<%= item.mediaType %>" data-item-id="<%= item.id %>" title="<%= item.content || 'Media content' %>">
+                          [<%= 
+                            item.mediaType === "image" ? "🖼️ image" : 
+                            item.mediaType === "video" ? "🎬 video" : 
+                            item.mediaType === "audio" ? "🎵 audio" : 
+                            item.mediaType === "document" ? "📄 document" : 
+                            item.mediaType === "archive" ? "📦 archive" : 
+                            item.mediaType === "error" ? "⚠️ error" : 
+                            "📱 media"
+                          %>]
+                        </span>
+                      <% } else if (item.content && item.content.startsWith('[ERROR:')) { %>
+                        <span class="feed-item-summary-error" data-item-id="<%= item.id %>" title="<%= item.content %>">[⚠️ error loading content]</span>
                       <% } else { %>
-                          <span class="feed-item-summary-not-available" data-item-id="<%= item.id %>">[no summary available]</span>
+                        <span class="feed-item-summary-not-available" data-item-id="<%= item.id %>">[no summary available]</span>
+                      <% } %>
+                      <% if (item.isPositive === true) { %>
+                        <span class="feed-item-sentiment positive" title="Positive content">😊</span>
+                      <% } else if (item.isPositive === false) { %>
+                        <span class="feed-item-sentiment negative" title="Neutral or negative content">😐</span>
+                      <% } else { %>
+                        <span class="feed-item-sentiment unknown" title="Sentiment not analyzed">❓</span>
                       <% } %>
                     </div>
                     <% if (item.summary) { %>
@@ -84,6 +110,14 @@
     </div>
 
     <script>
+      // Enable debug mode by adding ?debug=true to the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const debugMode = urlParams.get('debug') === 'true';
+      
+      if (debugMode) {
+        console.log('Debug mode enabled');
+      }
+      
       document.addEventListener('DOMContentLoaded', function() {
         // Dark mode toggle functionality
         const darkModeToggle = document.getElementById('darkModeToggle');
@@ -104,6 +138,100 @@
           darkModeToggle.textContent = isDark ? '☀️' : '🌙';
           localStorage.setItem('darkMode', isDark);
         });
+        
+        // Good Vibes Only toggle functionality
+        const goodVibesToggle = document.getElementById('goodVibesToggle');
+        let goodVibesOnly = localStorage.getItem('goodVibesOnly') === 'true';
+        
+        // Set initial state
+        if (goodVibesOnly) {
+          goodVibesToggle.classList.add('active');
+          filterByPositiveSentiment(true);
+        } else {
+          goodVibesToggle.classList.remove('active');
+          filterByPositiveSentiment(false);
+        }
+        
+        // Toggle good vibes filter
+        goodVibesToggle.addEventListener('click', function() {
+          goodVibesOnly = !goodVibesOnly;
+          this.classList.toggle('active', goodVibesOnly);
+          localStorage.setItem('goodVibesOnly', goodVibesOnly);
+          filterByPositiveSentiment(goodVibesOnly);
+        });
+        
+        // Function to filter items by sentiment
+        function filterByPositiveSentiment(showOnlyPositive) {
+          if (debugMode) {
+            console.log(`Filtering items, showOnlyPositive: ${showOnlyPositive}`);
+          }
+          
+          const feedItems = document.querySelectorAll('.feed-item');
+          let positiveCount = 0;
+          let negativeCount = 0;
+          
+          feedItems.forEach(function(item) {
+            const isPositive = item.getAttribute('data-positive') === 'true';
+            
+            if (debugMode) {
+              const itemTitle = item.querySelector('.feed-item-link').textContent.trim();
+              console.log(`Item: "${itemTitle.substring(0, 30)}...", isPositive: ${isPositive}`);
+            }
+            
+            if (isPositive) {
+              positiveCount++;
+            } else {
+              negativeCount++;
+            }
+            
+            if (showOnlyPositive) {
+              if (isPositive) {
+                item.style.display = '';
+              } else {
+                item.style.display = 'none';
+              }
+            } else {
+              item.style.display = '';
+            }
+          });
+          
+          if (debugMode) {
+            console.log(`Total items: ${feedItems.length}, Positive: ${positiveCount}, Negative/Neutral: ${negativeCount}`);
+          }
+          
+          // Show/hide "no items" message for feeds
+          document.querySelectorAll('.feed').forEach(function(feed) {
+            const feedTitle = feed.querySelector('.feed-title-link').textContent.trim();
+            
+            // Count visible items correctly by checking display property
+            const allItems = Array.from(feed.querySelectorAll('.feed-item'));
+            const visibleItems = allItems.filter(item => item.style.display !== 'none');
+            
+            if (debugMode) {
+              console.log(`Feed: "${feedTitle}", Total items: ${allItems.length}, Visible items: ${visibleItems.length}`);
+            }
+            
+            const feedItems = feed.querySelector('.feed-items');
+            
+            if (visibleItems.length === 0 && showOnlyPositive) {
+              // Create "no positive items" message if it doesn't exist
+              let noPositiveItems = feed.querySelector('.no-positive-items');
+              if (!noPositiveItems) {
+                noPositiveItems = document.createElement('p');
+                noPositiveItems.className = 'no-positive-items';
+                noPositiveItems.textContent = 'No positive items found for this feed';
+                feedItems.appendChild(noPositiveItems);
+              }
+              noPositiveItems.style.display = '';
+            } else {
+              // Hide "no positive items" message if it exists
+              const noPositiveItems = feed.querySelector('.no-positive-items');
+              if (noPositiveItems) {
+                noPositiveItems.style.display = 'none';
+              }
+            }
+          });
+        }
         
         // Add click event listeners to all summary toggle elements
         document.querySelectorAll('.feed-item-summary-toggle').forEach(function(element) {

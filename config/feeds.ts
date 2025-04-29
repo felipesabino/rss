@@ -19,9 +19,9 @@ export const feeds: FeedConfig[] = [
     categories: ["tech"],
   },
   {
-    id: 2,
-    name: "The Verge",
-    url: "https://www.theverge.com/rss/index.xml",
+    id: 18,
+    name: "Reddit /r/singularity",
+    url: "https://www.reddit.com/r/singularity.rss",
     categories: ["tech"],
   },
   {
@@ -34,6 +34,12 @@ export const feeds: FeedConfig[] = [
     id: 5,
     name: "ARS Techinica (Technology Lab)",
     url: "https://feeds.arstechnica.com/arstechnica/technology-lab",
+    categories: ["tech"],
+  },
+  {
+    id: 2,
+    name: "The Verge",
+    url: "https://www.theverge.com/rss/index.xml",
     categories: ["tech"],
   },
   {
@@ -96,12 +102,6 @@ export const feeds: FeedConfig[] = [
     url: "https://www.reddit.com/r/brasil.rss",
     categories: ["brazil", "regional news"],
   }, 
-  {
-    id: 18,
-    name: "Reddit /r/singularity",
-    url: "https://www.reddit.com/r/singularity.rss",
-    categories: ["tech"],
-  },
   {
     id: 19,
     name: "Reddit /r/france",
