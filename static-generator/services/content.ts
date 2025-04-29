@@ -143,42 +143,60 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
     const imageCount = $('img').length;
     const audioEmbeds = $('audio, [class*="audio"], [id*="audio"]').length;
     
-    // Check for media-heavy content
+    // Extract the body text first to evaluate content amount
+    const bodyText = $('body').text().trim();
+    const textLength = bodyText.length;
+    
+    // Check for media-heavy content, but only skip if there's not enough text
     if (iframeCount > 0 || videoEmbeds > 0) {
       // Check specifically for video embeds
       const youtubeEmbed = $('iframe[src*="youtube"], iframe[src*="youtu.be"]').length > 0;
       const vimeoEmbed = $('iframe[src*="vimeo"]').length > 0;
       
-      if (youtubeEmbed || vimeoEmbed) {
+      // If it's a YouTube or Vimeo embed with very little text, skip extraction
+      // but use a higher threshold (1000 chars) to ensure we're not missing substantial content
+      if ((youtubeEmbed || vimeoEmbed) && textLength < 1000) {
         const platform = youtubeEmbed ? 'YouTube' : 'Vimeo';
-        console.log(`Skipping content extraction for ${url}: ${platform} video embed detected`);
+        console.log(`Skipping content extraction for ${url}: ${platform} video embed detected with limited text (${textLength} chars)`);
         return {
           content: '',
-          skipReason: `${platform} video embed detected`,
+          skipReason: `${platform} video embed with limited text content`,
           mediaType: 'video'
         };
       }
       
-      // Generic iframe or video embed
-      if (iframeCount > 0 || videoEmbeds > 0) {
-        console.log(`Skipping content extraction for ${url}: Media embed detected (${iframeCount} iframes, ${videoEmbeds} videos)`);
+      // For generic iframe or video embed, only skip if there's very little text
+      // Use a threshold based on the number of embeds - more embeds require more text to justify extraction
+      const textThreshold = Math.max(500, (iframeCount + videoEmbeds) * 200);
+      if (textLength < textThreshold) {
+        console.log(`Skipping content extraction for ${url}: Media embed detected (${iframeCount} iframes, ${videoEmbeds} videos) with limited text (${textLength} chars)`);
         return {
           content: '',
-          skipReason: `Media embed detected`,
+          skipReason: `Media embed with limited text content (${textLength} chars)`,
           mediaType: 'video'
         };
+      } else {
+        console.log(`Found media embeds (${iframeCount} iframes, ${videoEmbeds} videos) but also substantial text (${textLength} chars), proceeding with extraction`);
       }
     }
     
-    // Check for image galleries or audio content
-    const bodyText = $('body').text().trim();
-    if ((imageCount > 5 && bodyText.length < 500) || audioEmbeds > 0) {
-      const mediaType = imageCount > 5 ? 'image' : 'audio';
-      console.log(`Skipping content extraction for ${url}: Likely ${mediaType} content`);
+    // Check for image galleries or audio content, but only skip if there's not enough text
+    if (imageCount > 5 && textLength < 1000) {
+      console.log(`Skipping content extraction for ${url}: Likely image gallery (${imageCount} images) with limited text (${textLength} chars)`);
       return {
         content: '',
-        skipReason: imageCount > 5 ? `Image gallery detected (${imageCount} images)` : `Audio content detected`,
-        mediaType
+        skipReason: `Image gallery detected (${imageCount} images) with limited text`,
+        mediaType: 'image'
+      };
+    }
+    
+    // For audio embeds, require more text to justify extraction
+    if (audioEmbeds > 0 && textLength < 800) {
+      console.log(`Skipping content extraction for ${url}: Audio content detected with limited text (${textLength} chars)`);
+      return {
+        content: '',
+        skipReason: `Audio content with limited text`,
+        mediaType: 'audio'
       };
     }
 
