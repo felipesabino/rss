@@ -102,6 +102,18 @@ export const feeds: FeedConfig[] = [
     url: "https://www.reddit.com/r/singularity.rss",
     categories: ["tech"],
   },
+  {
+    id: 19,
+    name: "Reddit /r/france",
+    url: "https://www.reddit.com/r/france.rss",
+    categories: ["france", "regional news"],
+  }, 
+  {
+    id: 20,
+    name: "Reddit /r/paris",
+    url: "https://www.reddit.com/r/paris.rss",
+    categories: ["france", "regional news"],
+  }, 
 ];
 
 // Get all unique categories
