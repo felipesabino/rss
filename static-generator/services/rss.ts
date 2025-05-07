@@ -1,7 +1,7 @@
 import { contentExtractor } from './content';
 import { summarizeText, analyzeSentiment } from './openai';
 import { feeds } from '../../config/feeds';
-import { loadCache, saveCache, getCachedItem, setCachedItem, cleanCache, Cache, saveRenderCache, loadRenderCache } from './cache';
+import { loadCache, saveCache, cleanCache, Cache, saveRenderCache, loadRenderCache, CacheItem } from './cache';
 import { parseFeed, parseFeedWithMetadata, FeedMetadata } from './feed-parser';
 import { parseDate } from './date-parser';
 
@@ -18,6 +18,7 @@ export interface Item {
   commentsUrl?: string;  // Field for Hacker News comments URL
   isPositive?: boolean;  // Field for sentiment analysis result
   mediaType?: string;    // Field for media type (image, video, audio, document, etc.)
+  mediaUrl?: string;     // Field for media URL (for embedded content)
 }
 
 // Storage for items and metadata
@@ -27,6 +28,38 @@ let feedMetadata: Record<number, FeedMetadata> = {};
 
 // Cache instance
 let cache: Cache;
+
+// In-memory cache for items during processing
+let itemsCache: Record<string, CacheItem> = {};
+
+/**
+ * Get an item from the in-memory cache
+ */
+function getCachedItem(cache: Cache, url: string): CacheItem | null {
+  const item = itemsCache[url];
+  
+  // Return null if the item doesn't exist or is expired
+  if (!item || Date.now() - item.timestamp > 24 * 60 * 60 * 1000) {
+    return null;
+  }
+  
+  return item;
+}
+
+/**
+ * Add or update an item in the in-memory cache
+ */
+function setCachedItem(cache: Cache, url: string, content: string, summary?: string, isPositive?: boolean, mediaType?: string, mediaUrl?: string): void {
+  itemsCache[url] = {
+    url,
+    content,
+    summary,
+    isPositive,
+    mediaType,
+    mediaUrl: mediaUrl || url,
+    timestamp: Date.now()
+  };
+}
 
 // Date parsing is now handled by the date-parser module
 
@@ -128,12 +161,13 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
               // Default to not positive for non-text content
               isPositive = false;
               
-              // Get the media type
+              // Get the media type and URL
               const mediaType = contentResult.mediaType || 'unknown';
-              console.log(`Media type detected: ${mediaType}`);
+              const mediaUrl = contentResult.mediaUrl || url;
+              console.log(`Media type detected: ${mediaType}, Media URL: ${mediaUrl}`);
               
-              // Cache the result with skip reason, default sentiment, and media type
-              setCachedItem(cache, url, `[SKIPPED: ${contentResult.skipReason}]`, undefined, isPositive, mediaType);
+              // Cache the result with skip reason, default sentiment, media type, and media URL
+              setCachedItem(cache, url, `[SKIPPED: ${contentResult.skipReason}]`, undefined, isPositive, mediaType, mediaUrl);
             } else {
               // Only summarize if content is substantial
               const shouldSummarize = content.length > 500;
@@ -152,12 +186,12 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
                     console.log(`Sentiment analysis completed for "${item.title!}": ${isPositive ? 'Positive ✅' : 'Negative/Neutral ❌'}`);
                     
                     // Cache the content, summary, and sentiment
-                    setCachedItem(cache, url, content, summary, isPositive);
+                    setCachedItem(cache, url, content, summary, isPositive, undefined, url);
                   } catch (err: any) {
                     console.error(`Failed to analyze sentiment: ${err.message}`);
                     
                     // Cache without sentiment
-                    setCachedItem(cache, url, content, summary);
+                    setCachedItem(cache, url, content, summary, undefined, undefined, url);
                   }
                 } catch (err: any) {
                   console.error(`Failed to summarize item: ${err.message}`);
@@ -168,10 +202,10 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
                     isPositive = await analyzeSentiment(textForSentiment);
                     
                     // Cache the content and sentiment
-                    setCachedItem(cache, url, content, undefined, isPositive);
+                    setCachedItem(cache, url, content, undefined, isPositive, undefined, url);
                   } catch (sentErr: any) {
                     // Cache just the content if everything else fails
-                    setCachedItem(cache, url, content);
+                    setCachedItem(cache, url, content, undefined, undefined, undefined, url);
                   }
                 }
               } else {
@@ -182,10 +216,10 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
                   isPositive = await analyzeSentiment(textForSentiment);
                   
                   // Cache the content and sentiment
-                  setCachedItem(cache, url, content, undefined, isPositive);
+                  setCachedItem(cache, url, content, undefined, isPositive, undefined, url);
                 } catch (err: any) {
                   // Cache just the content
-                  setCachedItem(cache, url, content);
+                  setCachedItem(cache, url, content, undefined, undefined, undefined, url);
                 }
               }
             }
@@ -196,17 +230,19 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
             console.log(`Content extraction failed. Skipping sentiment analysis and defaulting to not positive.`);
             isPositive = false;
             
-            // Cache the error result with default sentiment and unknown media type
-            setCachedItem(cache, url, `[ERROR: Content extraction failed]`, undefined, isPositive, 'error');
+            // Cache the error result with default sentiment, unknown media type, and original URL
+            setCachedItem(cache, url, `[ERROR: Content extraction failed]`, undefined, isPositive, 'error', url);
             
             continue;
           }
         }
         
-        // Get the media type from cache if available
+        // Get the media type and URL from cache if available
         let mediaType = undefined;
-        if (cache.items[url] && cache.items[url].mediaType) {
-          mediaType = cache.items[url].mediaType;
+        let mediaUrl = undefined;
+        if (itemsCache[url]) {
+          mediaType = itemsCache[url].mediaType;
+          mediaUrl = itemsCache[url].mediaUrl;
         }
         
         const newItem: Item = {
@@ -220,7 +256,8 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
           hasSummary,
           commentsUrl: item.comments,  // Extract comments URL from feed item
           isPositive: isPositive,      // Add sentiment analysis result
-          mediaType: mediaType         // Add media type
+          mediaType: mediaType,        // Add media type
+          mediaUrl: mediaUrl           // Add media URL
         };
 
         items.push(newItem);
@@ -255,7 +292,7 @@ export async function updateAllFeeds(): Promise<void> {
     await fetchFeed(feed);
   }
 
-  // Save the updated cache (legacy fields)
+  // Save the updated cache
   await saveCache(cache);
 
   // Save all items and feed metadata for static generation

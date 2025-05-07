@@ -5,12 +5,15 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
-    "build": "tsx static-generator/generator.ts --update-feeds --generate-static",
-    "update-feeds": "tsx static-generator/generator.ts --update-feeds",
-    "generate-static": "tsx static-generator/generator.ts --generate-static",
+    "build": "tsx static-generator/generator.ts --all",
     "preview": "npx serve dist",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "step1": "tsx static-generator/generator.ts --step1",
+    "step2": "tsx static-generator/generator.ts --step2",
+    "step3": "tsx static-generator/generator.ts --step3",
+    "step4": "tsx static-generator/generator.ts --step4",
+    "step5": "tsx static-generator/generator.ts --step5"
   },
   "dependencies": {
     "@types/luxon": "^3.6.2",

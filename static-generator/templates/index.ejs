@@ -64,20 +64,57 @@
                       <% } %>
                       <% if (item.hasSummary) { %>
                         <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[toggle ai summary]</span>
-                      <% } else if (item.mediaType) { %>
-                        <span class="feed-item-summary-skipped feed-item-media-<%= item.mediaType %>" data-item-id="<%= item.id %>" title="<%= item.content || 'Media content' %>">
-                          [<%= 
-                            item.mediaType === "image" ? "🖼️ image" : 
-                            item.mediaType === "video" ? "🎬 video" : 
-                            item.mediaType === "audio" ? "🎵 audio" : 
-                            item.mediaType === "document" ? "📄 document" : 
-                            item.mediaType === "archive" ? "📦 archive" : 
-                            item.mediaType === "error" ? "⚠️ error" : 
-                            "📱 media"
-                          %>]
+                      <% } else if (item.mediaType === "image") { %>
+                        <span class="feed-item-summary-skipped feed-item-media-image feed-item-media-toggle" data-item-id="<%= item.id %>" title="Click to toggle embedded image. Click the image to open in new tab.">
+                          [🖼️ image]
                         </span>
+                        <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
+                          <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer">
+                            <img src="<%= item.mediaUrl || item.url %>" alt="Embedded image" style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc; cursor: pointer;">
+                          </a>
+                        </span>
+                      <% } else if (item.mediaType === "video" && (item.mediaUrl || item.url).includes("youtube.com/watch") || (item.mediaUrl || item.url).includes("youtu.be/")) { %>
+                        <span class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle" data-item-id="<%= item.id %>">
+                          [🎬 video]
+                        </span>
+                        <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
+                          <% 
+                            // Extract YouTube video ID
+                            let ytId = null;
+                            try {
+                              const url = new URL(item.mediaUrl || item.url);
+                              if (url.hostname.includes("youtube.com")) {
+                                ytId = url.searchParams.get("v");
+                              } else if (url.hostname.includes("youtu.be")) {
+                                ytId = url.pathname.replace("/", "");
+                              }
+                            } catch (e) {}
+                          %>
+                          <% if (ytId) { %>
+                            <iframe width="400" height="225" src="https://www.youtube.com/embed/<%= ytId %>" frameborder="0" allowfullscreen style="margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></iframe>
+                          <% } else { %>
+                            <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer">Open video</a>
+                          <% } %>
+                        </span>
+                      <% } else if (item.mediaType === "video") { %>
+                        <span class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle" data-item-id="<%= item.id %>">
+                          [🎬 video]
+                        </span>
+                        <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
+                          <video src="<%= item.mediaUrl || item.url %>" controls style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></video>
+                        </span>
+                      <% } else if (item.mediaType) { %>
+                        <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-summary-skipped feed-item-media-<%= item.mediaType %>" data-item-id="<%= item.id %>" title="<%= item.content || 'Media content' %>">
+                          [<%= 
+                            item.mediaType === "audio" ? "🎵 audio ⬚↗" : 
+                            item.mediaType === "document" ? "📄 document ⬚↗" : 
+                            item.mediaType === "archive" ? "📦 archive ⬚↗" : 
+                            item.mediaType === "error" ? "⚠️ error" : 
+                            "💻 media ⬚↗"
+                          %>]
+                        </a>
                       <% } else if (item.content && item.content.startsWith('[ERROR:')) { %>
-                        <span class="feed-item-summary-error" data-item-id="<%= item.id %>" title="<%= item.content %>">[⚠️ error loading content]</span>
+                        <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-summary-error" data-item-id="<%= item.id %>" title="<%= item.content %>">[⚠️ error loading content]</a>
                       <% } else { %>
                         <span class="feed-item-summary-not-available" data-item-id="<%= item.id %>">[no summary available]</span>
                       <% } %>
@@ -118,7 +155,17 @@
         console.log('Debug mode enabled');
       }
       
+      // Toggle media embed visibility
       document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.feed-item-media-toggle').forEach(function(element) {
+          element.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-item-id');
+            const mediaElement = document.getElementById('media-' + itemId);
+            if (mediaElement) {
+              mediaElement.classList.toggle('hidden');
+            }
+          });
+        });
         // Dark mode toggle functionality
         const darkModeToggle = document.getElementById('darkModeToggle');
         const body = document.body;

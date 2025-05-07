@@ -180,7 +180,7 @@ export class FeedParserService {
    * 
    * @param feedUrl The URL of the feed to parse
    * @param feedName The name of the feed (for logging purposes)
-   * @returns An array of normalized feed items for backward compatibility with tests
+   * @returns An array of normalized feed items
    */
   async parseFeed(feedUrl: string, feedName: string): Promise<FeedItem[]> {
     try {
@@ -301,7 +301,7 @@ export class FeedParserService {
    * This is a fallback method when the standard RSS parser fails
    * 
    * @param feedUrl The URL of the feed to parse
-   * @returns An array of feed items for backward compatibility with tests
+   * @returns An array of feed items
    */
   private async parseFeedWithCheerio(feedUrl: string): Promise<FeedItem[] | { items: FeedItem[], metadata: FeedMetadata }> {
     try {

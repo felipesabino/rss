@@ -11,12 +11,12 @@ export interface CacheItem {
   summary?: string;
   isPositive?: boolean;
   mediaType?: string;
+  mediaUrl?: string;
   timestamp: number;
 }
 
-// New cache structure: stores all items and feed metadata needed for rendering
+// Cache structure: stores all items and feed metadata needed for rendering
 export interface Cache {
-  items: Record<string, CacheItem>; // legacy, for backward compatibility
   allItems: Item[]; // all items for rendering
   feedMetadata: Record<number, FeedMetadata>; // feed metadata for rendering
   lastUpdated: number;
@@ -26,7 +26,6 @@ export interface Cache {
 const CACHE_FILE_PATH = path.join(process.cwd(), '.cache', 'rss-cache.json');
 
 const DEFAULT_CACHE: Cache = {
-  items: {},
   allItems: [],
   feedMetadata: {},
   lastUpdated: Date.now()
@@ -46,7 +45,7 @@ export async function loadCache(): Promise<Cache> {
     // Try to read the cache file
     const cacheData = await fs.readFile(CACHE_FILE_PATH, 'utf-8');
     const parsed = JSON.parse(cacheData) as Cache;
-    // Ensure all fields exist for backward compatibility
+    // Ensure all fields exist
     if (!parsed.allItems) parsed.allItems = [];
     if (!parsed.feedMetadata) parsed.feedMetadata = {};
     return parsed;
@@ -98,52 +97,16 @@ export async function loadRenderCache(): Promise<{ allItems: Item[], feedMetadat
 }
 
 /**
- * Get an item from the cache
- */
-export function getCachedItem(cache: Cache, url: string): CacheItem | null {
-  const item = cache.items[url];
-  
-  // Return null if the item doesn't exist or is expired
-  if (!item || Date.now() - item.timestamp > CACHE_EXPIRATION) {
-    return null;
-  }
-  
-  return item;
-}
-
-/**
- * Add or update an item in the cache
- */
-export function setCachedItem(cache: Cache, url: string, content: string, summary?: string, isPositive?: boolean, mediaType?: string): void {
-  cache.items[url] = {
-    url,
-    content,
-    summary,
-    isPositive,
-    mediaType,
-    timestamp: Date.now()
-  };
-}
-
-/**
  * Clean expired items from the cache
  */
 export function cleanCache(cache: Cache): Cache {
   const now = Date.now();
   const cleanedCache: Cache = {
-    items: {},
     allItems: cache.allItems || [],
     feedMetadata: cache.feedMetadata || {},
     lastUpdated: now
   };
 
-  // Keep only non-expired items
-  Object.values(cache.items).forEach(item => {
-    if (now - item.timestamp <= CACHE_EXPIRATION) {
-      cleanedCache.items[item.url] = item;
-    }
-  });
-
-  console.log(`Cleaned cache: removed ${Object.keys(cache.items).length - Object.keys(cleanedCache.items).length} expired items`);
+  console.log(`Cleaned cache`);
   return cleanedCache;
 }

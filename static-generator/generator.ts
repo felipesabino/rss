@@ -1,81 +1,62 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { feeds, getAllCategories } from '../config/feeds';
-import ejs from 'ejs';
-import { updateAllFeeds, getItemsByFeed, getFeedMetadata, loadAllForRender } from './services/rss';
-
 import dotenv from 'dotenv';
+import { fetchAllFeeds } from './steps/1-fetch-feeds';
+import { extractAllContent } from './steps/2-extract-content';
+import { processContent } from './steps/3-process-content';
+import { processWithOpenAI } from './steps/4-process-with-openai';
+import { generateStaticSite } from './steps/5-generate-html';
+
+// Load environment variables
 dotenv.config();
-
-async function generateStaticSiteFromCache(): Promise<void> {
-  console.log('Generating static site from cache...');
-
-  // Create output directory if it doesn't exist
-  const outputDir = path.join(process.cwd(), 'dist');
-  await fs.mkdir(outputDir, { recursive: true });
-
-  // Load all items and feed metadata from cache
-  const { items, feedMetadata } = await loadAllForRender();
-
-  // Group items by feed
-  const itemsByFeed: Record<number, typeof items> = {};
-  for (const feed of feeds) {
-    itemsByFeed[feed.id] = items
-      .filter(item => item.feedId === feed.id)
-      .sort((i, j) => {
-        if (!i.published && !j.published) return 0;
-        if (!i.published) return 1;
-        if (!j.published) return -1;
-        return j.published.getTime() - i.published.getTime();
-      });
-  }
-
-  // Load and render the template
-  const templatePath = path.join(process.cwd(), 'static-generator/templates/index.ejs');
-  const template = await fs.readFile(templatePath, 'utf-8');
-
-  // Get all categories
-  const categories = getAllCategories();
-
-  const html = ejs.render(template, {
-    feeds,
-    itemsByFeed,
-    feedMetadata,
-    categories,
-    formatDate: (date: Date) => {
-      return date.toLocaleDateString(['fr-FR'], { hour: '2-digit', minute: '2-digit' });
-    }
-  });
-
-  // Write the output HTML file
-  await fs.writeFile(path.join(outputDir, 'index.html'), html);
-
-  // Copy CSS file
-  const cssContent = await fs.readFile(path.join(process.cwd(), 'static-generator/templates/styles.css'), 'utf-8');
-  await fs.writeFile(path.join(outputDir, 'styles.css'), cssContent);
-
-  console.log('Static site generated successfully from cache');
-}
 
 async function main() {
   try {
     const args = process.argv.slice(2);
-    const shouldUpdateFeeds = args.includes('--update-feeds');
-    const shouldGenerateStatic = args.includes('--generate-static');
+  const shouldRunStep1 = args.includes('--step1') || args.includes('--all');
+  const shouldRunStep2 = args.includes('--step2') || args.includes('--all');
+  const shouldRunStep3 = args.includes('--step3') || args.includes('--all');
+  const shouldRunStep4 = args.includes('--step4') || args.includes('--all');
+  const shouldRunStep5 = args.includes('--step5') || args.includes('--all');
 
-    if (!shouldUpdateFeeds && !shouldGenerateStatic) {
-      console.log('No action specified. Use --update-feeds and/or --generate-static');
+  if (!shouldRunStep1 && !shouldRunStep2 && !shouldRunStep3 && !shouldRunStep4 && !shouldRunStep5) {
+      console.log(`
+Usage: 
+  tsx static-generator/generator.ts [options]
+
+Options:
+  --step1             Run Step 1: Fetch RSS feeds and save raw data
+  --step2             Run Step 2: Extract content from URLs
+  --step3             Run Step 3: Process content (media type detection, etc.)
+  --step4             Run Step 4: Process content with OpenAI (summarize, analyze)
+  --step5             Run Step 5: Generate static HTML site
+  --all               Run all steps in sequence
+`);
       process.exit(0);
     }
 
-    if (shouldUpdateFeeds) {
-      console.log('Updating feeds...');
-      await updateAllFeeds();
+  // Run the specified steps
+    if (shouldRunStep1) {
+      console.log('Running Step 1: Fetch RSS feeds');
+      await fetchAllFeeds();
     }
 
-    if (shouldGenerateStatic) {
-      console.log('Generating static site...');
-      await generateStaticSiteFromCache();
+    if (shouldRunStep2) {
+      console.log('Running Step 2: Extract content');
+      await extractAllContent();
+    }
+
+    if (shouldRunStep3) {
+      console.log('Running Step 3: Process content');
+      await processContent();
+    }
+
+    if (shouldRunStep4) {
+      console.log('Running Step 4: Process content with OpenAI');
+      await processWithOpenAI();
+    }
+
+    if (shouldRunStep5) {
+      console.log('Running Step 5: Generate static HTML');
+      await generateStaticSite();
     }
 
     console.log('Process completed successfully');

@@ -2,6 +2,11 @@ import OpenAI from "openai";
 import { CONTENT_FILTERING_THEMES } from "../../config/constants";
 
 export async function summarizeText(text: string): Promise<string> {
+  // Check if OpenAI API key is available
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn("OPENAI_API_KEY is not set. Skipping summarization.");
+    return "Summary not available (API key not configured).";
+  }
 
   // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
   const openai = new OpenAI({ 
@@ -9,11 +14,15 @@ export async function summarizeText(text: string): Promise<string> {
     baseURL: process.env.OPENAI_API_BASE_URL
   });
 
+
   const truncatedText = text.length > 50000 ? text.substring(0, 50000) : text;
 
   try {
+    // Use a default model if not specified in environment variables
+    const modelName = process.env.OPENAI_MODEL_NAME || "gpt-3.5-turbo";
+    
     const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL_NAME,
+      model: modelName,
       messages: [
         {
           role: "system",
@@ -39,6 +48,12 @@ export async function summarizeText(text: string): Promise<string> {
 
 
 export async function analyzeSentiment(text: string): Promise<boolean> {
+  // Check if OpenAI API key is available
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn("OPENAI_API_KEY is not set. Skipping sentiment analysis.");
+    return false; // Default to not positive when API key is missing
+  }
+
   // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
   const openai = new OpenAI({ 
     apiKey: process.env.OPENAI_API_KEY,
@@ -50,8 +65,8 @@ export async function analyzeSentiment(text: string): Promise<boolean> {
   try {
     console.log(`Analyzing sentiment for text (length: ${truncatedText.length})`);
     
-    // Use the specified model or fall back to the summary model if not available
-    const modelName = process.env.OPENAI_SENTIMENT_MODEL_NAME || process.env.OPENAI_MODEL_NAME;
+    // Use the specified model or fall back to the summary model or a default if not available
+    const modelName = process.env.OPENAI_SENTIMENT_MODEL_NAME || process.env.OPENAI_MODEL_NAME || "gpt-3.5-turbo";
     
     const response = await openai.chat.completions.create({
       model: modelName,
