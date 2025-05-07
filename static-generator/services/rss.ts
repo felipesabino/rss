@@ -1,7 +1,7 @@
 import { contentExtractor } from './content';
 import { summarizeText, analyzeSentiment } from './openai';
 import { feeds } from '../../config/feeds';
-import { loadCache, saveCache, getCachedItem, setCachedItem, cleanCache, Cache } from './cache';
+import { loadCache, saveCache, getCachedItem, setCachedItem, cleanCache, Cache, saveRenderCache, loadRenderCache } from './cache';
 import { parseFeed, parseFeedWithMetadata, FeedMetadata } from './feed-parser';
 import { parseDate } from './date-parser';
 
@@ -239,27 +239,39 @@ export async function fetchFeed(feedConfig: typeof feeds[0]): Promise<void> {
 
 export async function updateAllFeeds(): Promise<void> {
   console.log('Updating all feeds...');
-  
+
   // Load the cache
   cache = await loadCache();
-  
+
   // Clean expired items from the cache
   cache = cleanCache(cache);
-  
+
   // Clear the items array to start fresh
   items = [];
-  
+  feedMetadata = {};
+
   // Fetch all feeds
   for (const feed of feeds) {
     await fetchFeed(feed);
   }
-  
-  // Save the updated cache
+
+  // Save the updated cache (legacy fields)
   await saveCache(cache);
-  
+
+  // Save all items and feed metadata for static generation
+  await saveRenderCache(items, feedMetadata);
+
   console.log(`Total items after update: ${items.length}`);
-  
+
   console.log('Update complete!');
+}
+
+/**
+ * Load all items and feed metadata for static generation (from cache)
+ */
+export async function loadAllForRender(): Promise<{ items: Item[], feedMetadata: Record<number, FeedMetadata> }> {
+  const { allItems, feedMetadata } = await loadRenderCache();
+  return { items: allItems, feedMetadata };
 }
 
 export function getItemsByFeed(): Record<number, Item[]> {

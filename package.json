@@ -5,7 +5,9 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
-    "build": "tsx static-generator/generator.ts",
+    "build": "tsx static-generator/generator.ts --update-feeds --generate-static",
+    "update-feeds": "tsx static-generator/generator.ts --update-feeds",
+    "generate-static": "tsx static-generator/generator.ts --generate-static",
     "preview": "npx serve dist",
     "test": "vitest run",
     "test:watch": "vitest"
