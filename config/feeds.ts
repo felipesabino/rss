@@ -96,6 +96,11 @@ export const feeds: FeedConfig[] = [
     name: "Reddit /r/paris",
     url: "https://www.reddit.com/r/paris.rss",
     categories: ["france", "regional news"],
+  },
+  {
+    name: "TV5MONDE Afrique",
+    url: "https://information.tv5monde.com/rsstaxo/23",
+    categories: ["Africa"],
   }, 
 ].map((feed, index) => {
   return {...feed, id: index+1}
