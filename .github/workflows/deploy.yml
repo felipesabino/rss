@@ -55,8 +55,8 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         OPENAI_API_BASE_URL: "https://api.openai.com/v1/"
-        OPENAI_MODEL_NAME: gpt-4.1-nano
-        OPENAI_SENTIMENT_MODEL_NAME: gpt-4.1-nano
+        OPENAI_MODEL_NAME: gpt-5-nano
+        OPENAI_SENTIMENT_MODEL_NAME: gpt-5-nano
         MAX_ITEMS_PER_FEED: 20
       run: |
         npm run build
