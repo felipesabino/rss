@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import ejs from 'ejs';
-import { feeds, getAllCategories } from '../../config/feeds';
+import { sources, getAllCategories } from '../../config/sources';
 import { loadAIProcessedContentCache, AIProcessedItem } from './4-process-with-openai';
 
 // Path to the output directory
@@ -15,7 +15,7 @@ export async function generateStaticSite(): Promise<void> {
 
   // Load the AI processed content from Step 4
   const aiProcessedCache = await loadAIProcessedContentCache();
-  
+
   if (aiProcessedCache.lastUpdated === 0) {
     console.error('No AI processed content found. Please run Step 4 first.');
     return;
@@ -29,24 +29,24 @@ export async function generateStaticSite(): Promise<void> {
 
   // Get all feed IDs from both the config and the cache
   const feedIds = new Set<number>();
-  
+
   // Add feed IDs from the AI processed items
   for (const item of aiProcessedCache.items) {
     feedIds.add(item.feedId);
   }
-  
+
   // Add feed IDs from the config
-  for (const feed of feeds) {
-    feedIds.add(feed.id);
+  for (const source of sources) {
+    feedIds.add(source.id);
   }
-  
+
   console.log(`Generating HTML for ${aiProcessedCache.items.length} items from ${feedIds.size} feeds...`);
-  
+
   // Group items by feed
   const itemsByFeed: Record<number, AIProcessedItem[]> = {};
-  for (const feed of feeds) {
-    itemsByFeed[feed.id] = aiProcessedCache.items
-      .filter(item => item.feedId === feed.id)
+  for (const source of sources) {
+    itemsByFeed[source.id] = aiProcessedCache.items
+      .filter(item => item.feedId === source.id)
       .sort((i, j) => {
         if (!i.published && !j.published) return 0;
         if (!i.published) return 1;
@@ -63,7 +63,7 @@ export async function generateStaticSite(): Promise<void> {
   const categories = getAllCategories();
 
   const html = ejs.render(template, {
-    feeds,
+    feeds: sources, // Pass sources as feeds to the template for backward compatibility
     itemsByFeed,
     feedMetadata: aiProcessedCache.feedMetadata,
     categories,

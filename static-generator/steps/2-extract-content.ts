@@ -2,8 +2,8 @@ import { contentExtractor } from '../services/content';
 import fs from 'fs/promises';
 import path from 'path';
 import { parseDate } from '../services/date-parser';
-import { loadRawFeedCache } from './1-fetch-feeds';
-import { feeds } from '../../config/feeds';
+import { loadRawFeedCache } from './1-fetch-sources';
+import { sources } from '../../config/sources';
 import { FeedItem, FeedMetadata } from '../services/feed-parser';
 
 // Define the structure for extracted content items
@@ -37,7 +37,7 @@ export async function extractAllContent(): Promise<void> {
 
   // Load the raw feed data from Step 1
   const rawFeedCache = await loadRawFeedCache();
-  
+
   if (rawFeedCache.lastUpdated === 0) {
     console.error('No raw feed data found. Please run Step 1 first.');
     return;
@@ -57,20 +57,20 @@ export async function extractAllContent(): Promise<void> {
 
   // Process each feed
   let itemIdCounter = 1;
-  
+
   // Get all feed IDs from both the config and the cache
   const feedIds = new Set<string>();
-  
+
   // Add feed IDs from the cache
   for (const feedId in rawFeedCache.items) {
     feedIds.add(feedId);
   }
-  
+
   // Add feed IDs from the config
-  for (const feed of feeds) {
-    feedIds.add(feed.id.toString());
+  for (const source of sources) {
+    feedIds.add(source.id.toString());
   }
-  
+
   // Process each feed ID
   for (const feedId of Array.from(feedIds)) {
     // Skip if the feed doesn't exist in the raw feed cache
@@ -78,7 +78,7 @@ export async function extractAllContent(): Promise<void> {
       console.log(`Feed ID ${feedId} not found in raw feed cache. Run Step 1 to fetch this feed.`);
       continue;
     }
-    
+
     // Use type assertion to handle string index
     const items = rawFeedCache.items as Record<string, FeedItem[]>;
     const feedItems = items[feedId];
@@ -91,18 +91,18 @@ export async function extractAllContent(): Promise<void> {
         // Determine the URL to process
         let url = '';
         let isYouTubeUrl = false;
-        
+
         if (item.link.includes('reddit.com')) {
           // Find non reddit.com urls on the HTML encoded content
           const urlRegex = /href=(?:"|")(?!https?:\/\/(?:www\.)?reddit\.com)([^"&]+)(?:"|")/;
           try {
             let match = urlRegex.exec(item.content!);
             url = match ? match[1] : item.link!;
-            
+
             // Check if the URL is a YouTube URL
             isYouTubeUrl = url.includes('youtube.com') || url.includes('youtu.be');
-            
-          } catch (err: any) { 
+
+          } catch (err: any) {
             url = item.link!;
           }
           console.log(`Reddit URL replacement. Old: ${item.content?.substring(0, 30)}...; New: ${url}`);
@@ -118,7 +118,7 @@ export async function extractAllContent(): Promise<void> {
         let mediaUrl: string | undefined;
 
         console.log(`Extracting content for: ${url}`);
-        
+
         // If it's a YouTube URL, set the media type directly
         if (isYouTubeUrl) {
           console.log(`YouTube URL detected: ${url}`);
@@ -129,11 +129,11 @@ export async function extractAllContent(): Promise<void> {
           try {
             const contentResult = await contentExtractor(url);
             content = contentResult.content;
-            
+
             // If content extraction was skipped, get the media type and URL
             if (contentResult.skipReason) {
               console.log(`Content extraction skipped: ${contentResult.skipReason}`);
-              
+
               // Get the media type and URL
               mediaType = contentResult.mediaType || 'unknown';
               mediaUrl = contentResult.mediaUrl || url;
@@ -141,7 +141,7 @@ export async function extractAllContent(): Promise<void> {
             }
           } catch (err: any) {
             console.error(`Failed to extract content: ${err.message}`);
-            
+
             // Set media type to error
             mediaType = 'error';
             mediaUrl = url;
@@ -173,17 +173,17 @@ export async function extractAllContent(): Promise<void> {
 
   // Save the extracted content to cache
   await fs.writeFile(
-    EXTRACTED_CONTENT_CACHE_PATH, 
+    EXTRACTED_CONTENT_CACHE_PATH,
     JSON.stringify(extractedCache, (key, value) => {
       // Convert Date objects to ISO strings for JSON serialization
       if (value instanceof Date) {
         return value.toISOString();
       }
       return value;
-    }, 2), 
+    }, 2),
     'utf-8'
   );
-  
+
   console.log(`Step 2 complete: All content extracted and saved to ${EXTRACTED_CONTENT_CACHE_PATH}`);
   console.log(`Total extracted items: ${extractedCache.items.length}`);
 }
@@ -195,13 +195,13 @@ export async function loadExtractedContentCache(): Promise<ExtractedContentCache
   try {
     const cacheData = await fs.readFile(EXTRACTED_CONTENT_CACHE_PATH, 'utf-8');
     const parsed = JSON.parse(cacheData) as ExtractedContentCache;
-    
+
     // Convert ISO date strings back to Date objects
     parsed.items = parsed.items.map(item => ({
       ...item,
       published: new Date(item.published)
     }));
-    
+
     return parsed;
   } catch (error) {
     console.error('Failed to load extracted content cache:', error);

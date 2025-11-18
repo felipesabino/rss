@@ -2,7 +2,7 @@ import { summarizeText, analyzeSentiment } from '../services/openai';
 import fs from 'fs/promises';
 import path from 'path';
 import { loadProcessedContentCache, ProcessedContentItem } from './3-process-content';
-import { feeds } from '../../config/feeds';
+import { sources } from '../../config/sources';
 
 // Define the structure for AI processed items
 export interface AIProcessedItem extends ProcessedContentItem {
@@ -30,7 +30,7 @@ export async function processWithOpenAI(): Promise<void> {
 
   // Load the processed content data from Step 3
   const processedCache = await loadProcessedContentCache();
-  
+
   if (processedCache.lastUpdated === 0) {
     console.error('No processed content data found. Please run Step 3 first.');
     return;
@@ -50,19 +50,19 @@ export async function processWithOpenAI(): Promise<void> {
 
   // Get all feed IDs from both the config and the cache
   const feedIds = new Set<number>();
-  
+
   // Add feed IDs from the processed items
   for (const item of processedCache.items) {
     feedIds.add(item.feedId);
   }
-  
+
   // Add feed IDs from the config
-  for (const feed of feeds) {
-    feedIds.add(feed.id);
+  for (const source of sources) {
+    feedIds.add(source.id);
   }
-  
+
   console.log(`Processing content with OpenAI for ${processedCache.items.length} items from ${feedIds.size} feeds...`);
-  
+
   // Process each item
   for (const item of processedCache.items) {
     console.log(`Processing item with OpenAI: ${item.title} (Feed ID: ${item.feedId})`);
@@ -71,27 +71,27 @@ export async function processWithOpenAI(): Promise<void> {
       let summary: string | undefined;
       let hasSummary = false;
       let isPositive: boolean | undefined;
-      
+
       // Skip OpenAI processing for non-text content or if flagged to skip
       if (item.shouldSkipAI) {
         console.log(`Skipping OpenAI processing for item. Media type: ${item.mediaType}`);
         console.log(`Defaulting to not positive for non-text content.`);
-        
+
         // Default to not positive for non-text content
         isPositive = false;
       } else {
         const content = item.content || '';
-        
+
         // Only summarize if content is substantial
         const shouldSummarize = content.length > 500;
-        
+
         if (shouldSummarize) {
           try {
             console.log(`Starting summarization for item: "${item.title.substring(0, 50)}..."`);
             summary = await summarizeText(content);
             hasSummary = true;
             console.log(`Summarization completed for "${item.title}"`);
-            
+
             // Analyze sentiment
             try {
               // Use content for sentiment analysis, or fallback to title if content is minimal
@@ -104,7 +104,7 @@ export async function processWithOpenAI(): Promise<void> {
             }
           } catch (err: any) {
             console.error(`Failed to summarize item: ${err.message}`);
-            
+
             // Try to analyze sentiment even if summarization fails
             try {
               const textForSentiment = content.length > 200 ? content : item.title;
@@ -138,7 +138,7 @@ export async function processWithOpenAI(): Promise<void> {
       console.log(`Added AI processed item: ${aiProcessedItem.title}`);
     } catch (err: any) {
       console.error(`Failed to process item with OpenAI ${item.title}: ${err.message}`);
-      
+
       // Add the item without OpenAI processing
       aiProcessedCache.items.push({
         ...item,
@@ -150,17 +150,17 @@ export async function processWithOpenAI(): Promise<void> {
 
   // Save the AI processed content to cache
   await fs.writeFile(
-    AI_PROCESSED_CONTENT_CACHE_PATH, 
+    AI_PROCESSED_CONTENT_CACHE_PATH,
     JSON.stringify(aiProcessedCache, (key, value) => {
       // Convert Date objects to ISO strings for JSON serialization
       if (value instanceof Date) {
         return value.toISOString();
       }
       return value;
-    }, 2), 
+    }, 2),
     'utf-8'
   );
-  
+
   console.log(`Step 4 complete: All content processed with OpenAI and saved to ${AI_PROCESSED_CONTENT_CACHE_PATH}`);
   console.log(`Total AI processed items: ${aiProcessedCache.items.length}`);
 }
@@ -172,13 +172,13 @@ export async function loadAIProcessedContentCache(): Promise<AIProcessedContentC
   try {
     const cacheData = await fs.readFile(AI_PROCESSED_CONTENT_CACHE_PATH, 'utf-8');
     const parsed = JSON.parse(cacheData) as AIProcessedContentCache;
-    
+
     // Convert ISO date strings back to Date objects
     parsed.items = parsed.items.map(item => ({
       ...item,
       published: new Date(item.published)
     }));
-    
+
     return parsed;
   } catch (error) {
     console.error('Failed to load AI processed content cache:', error);

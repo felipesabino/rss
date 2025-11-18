@@ -30,6 +30,8 @@ export interface FeedMetadata {
   description?: string;
   siteUrl?: string;
   iconUrl?: string;
+  language?: string;
+  lastBuildDate?: string;
 }
 
 export interface HttpResponse {
@@ -80,10 +82,11 @@ export class DefaultFeedParser implements FeedParser {
       },
       defaultRSS: 2.0,
       headers: {
-        Accept: 'application/rss+xml, application/xml, text/xml; q=0.8, */*; q=0.5'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/rss+xml, application/xml, text/xml; q=0.8, */*; q=0.5'
       }
     });
-    
+
     this.originalParseURL = this.parser.parseURL.bind(this.parser);
     this.parser.parseURL = this.parseURL.bind(this);
   }
@@ -91,15 +94,18 @@ export class DefaultFeedParser implements FeedParser {
   async parseURL(url: string): Promise<{ items: any[] }> {
     try {
       // Always download the feed content using DefaultHttpClient
-      const response = await this.httpClient.get(url, { 
+      const response = await this.httpClient.get(url, {
         responseType: 'buffer',
-        resolveBodyOnly: false
+        resolveBodyOnly: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
       });
-      
+
       // Try to detect encoding from XML declaration
       const xmlDeclaration = response.body.toString('ascii', 0, 200).match(/<\?xml[^>]*encoding=["']([^"']+)["'][^>]*\?>/i);
       let encoding = 'utf-8';
-      
+
       if (xmlDeclaration && xmlDeclaration[1]) {
         encoding = xmlDeclaration[1].toLowerCase();
         console.log(`XML declaration encoding detected: ${encoding}`);
@@ -107,7 +113,7 @@ export class DefaultFeedParser implements FeedParser {
         // Fall back to content-type header
         encoding = this.detectEncoding(response);
       }
-      
+
       // Use iconv-lite to decode with the detected encoding
       let content: string;
       try {
@@ -117,7 +123,7 @@ export class DefaultFeedParser implements FeedParser {
         console.error(`Error decoding with iconv-lite: ${iconvError.message}, falling back to utf-8`);
         content = response.body.toString('utf-8');
       }
-      
+
       // Parse the content as a string
       return await this.parser.parseString(content);
     } catch (error: any) {
@@ -134,27 +140,35 @@ export class DefaultFeedParser implements FeedParser {
   private detectEncoding(response: HttpResponse): BufferEncoding {
     const contentType = response.headers['content-type'] || '';
     let encoding: BufferEncoding = 'utf-8'; // Default encoding
-    
+
     // Try to extract charset from content-type header
-    const charsetMatch = typeof contentType === 'string' ? 
+    const charsetMatch = typeof contentType === 'string' ?
       contentType.match(/charset=([^;]+)/i) : null;
-      
+
     if (charsetMatch && charsetMatch[1]) {
       const detectedEncoding = charsetMatch[1].trim().toLowerCase();
-      
+
       if (detectedEncoding in ENCODING_MAP) {
         encoding = ENCODING_MAP[detectedEncoding];
       } else {
         console.log(`Unsupported encoding detected: ${detectedEncoding}, falling back to UTF-8`);
       }
     }
-    
+
     return encoding;
   }
 }
 
 export class DefaultHttpClient implements HttpClient {
   async get(url: string, options: any): Promise<HttpResponse> {
+    // Ensure User-Agent is set if not provided
+    if (!options.headers) {
+      options.headers = {};
+    }
+    if (!options.headers['User-Agent']) {
+      options.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+    }
+
     // Cast the response to match our HttpResponse interface
     const response = await got(url, options);
     return response as unknown as HttpResponse;
@@ -173,7 +187,7 @@ export class FeedParserService {
     private feedParser: FeedParser,
     private httpClient: HttpClient,
     private htmlParser: HtmlParser
-  ) {}
+  ) { }
 
   /**
    * Parse a feed URL using multiple strategies to handle different feed formats
@@ -189,13 +203,13 @@ export class FeedParserService {
         siteUrl: '',
         iconUrl: ''
       };
-      
+
       // Strategy 1: Try the standard parser first
       try {
         const parsedFeed = await this.feedParser.parseURL(feedUrl);
         if (parsedFeed.items && Array.isArray(parsedFeed.items)) {
           console.log(`Successfully parsed with rss-parser: ${parsedFeed.items.length} items`);
-          
+
           // Extract metadata from the parsed feed (for internal use)
           if (parsedFeed.link) {
             metadata.siteUrl = parsedFeed.link;
@@ -209,18 +223,24 @@ export class FeedParserService {
           if (parsedFeed.description) {
             metadata.description = parsedFeed.description;
           }
-          
+          if ((parsedFeed as any).language) {
+            metadata.language = (parsedFeed as any).language;
+          }
+          if ((parsedFeed as any).lastBuildDate) {
+            metadata.lastBuildDate = (parsedFeed as any).lastBuildDate;
+          }
+
           // Store metadata for later retrieval
           this._lastMetadata = metadata;
-          
+
           return parsedFeed.items;
         }
       } catch (parseError: any) {
         console.log(`Standard parsing failed for ${feedName}: ${parseError.message}`);
-        
+
         // Strategy 2: If standard parsing fails, try our custom cheerio parser
         const result = await this.parseFeedWithCheerio(feedUrl);
-        
+
         if (Array.isArray(result)) {
           return result;
         } else if (result.items.length > 0) {
@@ -228,28 +248,28 @@ export class FeedParserService {
           this._lastMetadata = result.metadata;
           return result.items;
         }
-        
+
         // Strategy 3: Try to fetch as plain text and look for RSS links
         console.log(`Cheerio parsing failed to find items for ${feedName}, trying direct HTTP request...`);
-        const response = await this.httpClient.get(feedUrl, { 
+        const response = await this.httpClient.get(feedUrl, {
           responseType: 'buffer',
           resolveBodyOnly: false
         });
-        
+
         // Convert buffer to string with proper encoding
         const encoding = this.detectEncoding(response);
         const content = response.body.toString(encoding);
-        
+
         // Check if it's an HTML page with RSS link
         const $ = this.htmlParser.load(content);
         const rssLink = $('link[type="application/rss+xml"]').attr('href');
-        
+
         if (rssLink) {
           console.log(`Found RSS link in HTML: ${rssLink}`);
           // Resolve relative URL if needed
           const resolvedUrl = new URL(rssLink, feedUrl).toString();
           const cheerioResult = await this.parseFeedWithCheerio(resolvedUrl);
-          
+
           if (Array.isArray(cheerioResult)) {
             return cheerioResult;
           } else {
@@ -259,7 +279,7 @@ export class FeedParserService {
           }
         }
       }
-      
+
       // If all strategies fail, return empty array
       return [];
     } catch (error: any) {
@@ -306,47 +326,47 @@ export class FeedParserService {
   private async parseFeedWithCheerio(feedUrl: string): Promise<FeedItem[] | { items: FeedItem[], metadata: FeedMetadata }> {
     try {
       console.log(`Fetching feed with cheerio: ${feedUrl}`);
-      const response = await this.httpClient.get(feedUrl, { 
+      const response = await this.httpClient.get(feedUrl, {
         responseType: 'buffer',
         resolveBodyOnly: false
       });
-      
+
       // Convert buffer to string with proper encoding
       const encoding = this.detectEncoding(response);
       const content = response.body.toString(encoding);
       const $ = this.htmlParser.load(content, { xmlMode: true });
-      
+
       const feedItems: FeedItem[] = [];
       const metadata: FeedMetadata = {
         siteUrl: '',
         iconUrl: ''
       };
-      
+
       // Extract feed metadata
       // Try to get site URL from alternate link
       const alternateLink = $('link[rel="alternate"]').attr('href');
       if (alternateLink) {
         metadata.siteUrl = alternateLink;
       }
-      
+
       // Try to get icon URL
       const iconUrl = $('icon').text();
       if (iconUrl) {
         metadata.iconUrl = iconUrl;
       }
-      
+
       // Try to get feed title
       const feedTitle = $('channel > title').text() || $('feed > title').text();
       if (feedTitle) {
         metadata.title = feedTitle;
       }
-      
+
       // Try to get feed description
       const feedDescription = $('channel > description').text() || $('feed > subtitle').text();
       if (feedDescription) {
         metadata.description = feedDescription;
       }
-      
+
       // Try to parse as RSS
       $('item').each((index: number, element: any) => {
         const $el = $(element);
@@ -358,18 +378,18 @@ export class FeedParserService {
           comments: $el.find('comments').text()
         });
       });
-      
+
       // If no items found, try to parse as Atom
       if (feedItems.length === 0) {
         $('entry').each((index: number, element: any) => {
           const $el = $(element);
           let link = $el.find('link').attr('href') || '';
-          
+
           // If link is not found with href attribute, try text content
           if (!link) {
             link = $el.find('link').text();
           }
-          
+
           feedItems.push({
             title: $el.find('title').text(),
             link: link,
@@ -379,12 +399,12 @@ export class FeedParserService {
           });
         });
       }
-      
+
       console.log(`Parsed ${feedItems.length} items with cheerio`);
       return { items: feedItems, metadata };
     } catch (error: any) {
       console.error(`Error parsing feed with cheerio: ${error.message}`);
-      return { 
+      return {
         items: [],
         metadata: {
           siteUrl: '',
@@ -397,14 +417,14 @@ export class FeedParserService {
   private detectEncoding(response: HttpResponse): BufferEncoding {
     const contentType = response.headers['content-type'] || '';
     let encoding: BufferEncoding = 'utf-8'; // Default encoding
-    
+
     // Try to extract charset from content-type header
-    const charsetMatch = typeof contentType === 'string' ? 
+    const charsetMatch = typeof contentType === 'string' ?
       contentType.match(/charset=([^;]+)/i) : null;
-      
+
     if (charsetMatch && charsetMatch[1]) {
       const detectedEncoding = charsetMatch[1].trim().toLowerCase();
-            
+
       if (detectedEncoding in ENCODING_MAP) {
         encoding = ENCODING_MAP[detectedEncoding];
         console.log(`Encoding detected: ${detectedEncoding}`);
@@ -414,7 +434,7 @@ export class FeedParserService {
     } else {
       console.log(`charsetMatch not found in content-type: ${contentType}`);
     }
-    
+
     return encoding;
   }
 }

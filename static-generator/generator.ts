@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { fetchAllFeeds } from './steps/1-fetch-feeds';
+import { fetchAllSources } from './steps/1-fetch-sources';
 import { extractAllContent } from './steps/2-extract-content';
 import { processContent } from './steps/3-process-content';
 import { processWithOpenAI } from './steps/4-process-with-openai';
@@ -11,19 +11,19 @@ dotenv.config();
 async function main() {
   try {
     const args = process.argv.slice(2);
-  const shouldRunStep1 = args.includes('--step1') || args.includes('--all');
-  const shouldRunStep2 = args.includes('--step2') || args.includes('--all');
-  const shouldRunStep3 = args.includes('--step3') || args.includes('--all');
-  const shouldRunStep4 = args.includes('--step4') || args.includes('--all');
-  const shouldRunStep5 = args.includes('--step5') || args.includes('--all');
+    const shouldRunStep1 = args.includes('--step1') || args.includes('--all');
+    const shouldRunStep2 = args.includes('--step2') || args.includes('--all');
+    const shouldRunStep3 = args.includes('--step3') || args.includes('--all');
+    const shouldRunStep4 = args.includes('--step4') || args.includes('--all');
+    const shouldRunStep5 = args.includes('--step5') || args.includes('--all');
 
-  if (!shouldRunStep1 && !shouldRunStep2 && !shouldRunStep3 && !shouldRunStep4 && !shouldRunStep5) {
+    if (!shouldRunStep1 && !shouldRunStep2 && !shouldRunStep3 && !shouldRunStep4 && !shouldRunStep5) {
       console.log(`
 Usage: 
   tsx static-generator/generator.ts [options]
 
 Options:
-  --step1             Run Step 1: Fetch RSS feeds and save raw data
+  --step1             Run Step 1: Fetch sources (RSS feeds and Google Search) and save raw data
   --step2             Run Step 2: Extract content from URLs
   --step3             Run Step 3: Process content (media type detection, etc.)
   --step4             Run Step 4: Process content with OpenAI (summarize, analyze)
@@ -33,10 +33,10 @@ Options:
       process.exit(0);
     }
 
-  // Run the specified steps
+    // Run the specified steps
     if (shouldRunStep1) {
-      console.log('Running Step 1: Fetch RSS feeds');
-      await fetchAllFeeds();
+      console.log('Running Step 1: Fetch sources');
+      await fetchAllSources();
     }
 
     if (shouldRunStep2) {

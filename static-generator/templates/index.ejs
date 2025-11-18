@@ -1,52 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Brutalist Report knock-off</title>
-    <link rel="stylesheet" href="styles.css">
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <div class="header-top">
-          <h1>Brutalist Report knock-off</h1>
-          <div class="header-buttons">
-            <button id="goodVibesToggle" class="good-vibes-toggle">Good Vibes Only</button>
-            <button id="darkModeToggle" class="dark-mode-toggle">🌙</button>
-          </div>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title>Brutalist Report knock-off</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-top">
+        <h1>Brutalist Report knock-off</h1>
+        <div class="header-buttons">
+          <button id="goodVibesToggle" class="good-vibes-toggle">Good Vibes Only</button>
+          <button id="darkModeToggle" class="dark-mode-toggle">🌙</button>
         </div>
-        <p class="updated-at">The day's headlines delivered to you without bullshit. Last updated <%= new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %> <%= new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }) %> (UTC).</p>
       </div>
-      
-      <div class="category-filter">
-        <ul class="category-list">
-          <li class="category-item all active" data-category="all">All</li>
-          <% categories.forEach(function(category) { %>
-            <li class="category-item" data-category="<%= category %>"><%= category.charAt(0).toUpperCase() + category.slice(1) %></li>
+      <p class="updated-at">The day's headlines delivered to you without bullshit. Last updated <%= new
+          Date().toLocaleDateString('en-US', { weekday: 'long' , month: 'long' , day: 'numeric' , year: 'numeric' ,
+          timeZone: 'UTC' }) %>
+          <%= new Date().toLocaleTimeString('en-US', { hour: 'numeric' , minute: '2-digit' , hour12: true,
+            timeZone: 'UTC' }) %> (UTC).</p>
+    </div>
+
+    <div class="category-filter">
+      <ul class="category-list">
+        <li class="category-item all active" data-category="all">All</li>
+        <% categories.forEach(function(category) { %>
+          <li class="category-item" data-category="<%= category %>">
+            <%= category.charAt(0).toUpperCase() + category.slice(1) %>
+          </li>
           <% }); %>
-        </ul>
-        <div class="category-help">Click to select multiple categories. Click "All" to reset.</div>
-      </div>
-      
-      <div class="feeds-container">
-        <% feeds.forEach(function(feed) { %>
-          <div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
-            <h3 class="feed-title">
-              <a href="<%= feedMetadata[feed.id]?.siteUrl || feed.url.replace(/\/rss\/?.*$|\.rss$|\/feed\/?.*$|\.xml$/, '/') %>" target="_blank" rel="noopener noreferrer" class="feed-title-link">
-                <% if (feedMetadata[feed.id]?.iconUrl) { %>
-                  <img src="<%= feedMetadata[feed.id].iconUrl %>" alt="<%= feed.name %> icon" class="feed-icon" />
-                <% } else { %>
-                  <img src="https://www.google.com/s2/favicons?domain=<%= new URL(feed.url).hostname %>" alt="<%= feed.name %> icon" class="feed-icon" />
-                <% } %>
-                <%= feed.name %>
-              </a>
-            </h3>
-            <div class="feed-items">
-              <% if (itemsByFeed[feed.id] && itemsByFeed[feed.id].length) { %>
-                <% itemsByFeed[feed.id].forEach(function(item) { %>
-                  <div class="feed-item" data-positive="<%= item.isPositive === true ? 'true' : 'false' %>">
-                    <% /* Debug info: */ %>
+      </ul>
+      <div class="category-help">Click to select multiple categories. Click "All" to reset.</div>
+    </div>
+
+    <div class="feeds-container">
+      <% feeds.forEach(function(feed) { %>
+        <div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
+          <h3 class="feed-title">
+            <a href="<%= feedMetadata[feed.id]?.siteUrl || feed.url.replace(/\/rss\/?.*$|\.rss$|\/feed\/?.*$|\.xml$/, '/') %>"
+              target="_blank" rel="noopener noreferrer" class="feed-title-link">
+              <% if (feedMetadata[feed.id]?.iconUrl) { %>
+                <img src="<%= feedMetadata[feed.id].iconUrl %>" alt="<%= feed.name %> icon" class="feed-icon" />
+                <% } else { let hostname='google.com' ; try { if (feed.url) hostname=new URL(feed.url).hostname; else if
+                  (feedMetadata[feed.id]?.siteUrl) hostname=new URL(feedMetadata[feed.id].siteUrl).hostname; } catch (e)
+                  {} %>
+                  <img src="https://www.google.com/s2/favicons?domain=<%= hostname %>" alt="<%= feed.name %> icon"
+                    class="feed-icon" />
+                  <% } %>
+                    <%= feed.name %>
+            </a>
+          </h3>
+          <div class="feed-items">
+            <% if (itemsByFeed[feed.id] && itemsByFeed[feed.id].length) { %>
+              <% itemsByFeed[feed.id].forEach(function(item) { %>
+                <div class="feed-item" data-positive="<%= item.isPositive === true ? 'true' : 'false' %>">
+                  <% /* Debug info: */ %>
                     <!-- Item ID: <%= item.id %>, isPositive: <%= item.isPositive %> -->
                     <div class="feed-item-header">
                       <a href="<%= item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-link">
@@ -56,321 +68,338 @@
                         <span class="feed-item-date">
                           (<%= formatDate(new Date(item.published)) %>)
                         </span>
-                      <% } %>
-                      <% if (item.commentsUrl) { %>
-                        <a href="<%= item.commentsUrl %>" target="_blank" rel="noopener noreferrer" class="feed-item-comments-link">
-                          [hn]
-                        </a>
-                      <% } %>
-                      <% if (item.hasSummary) { %>
-                        <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[toggle ai summary]</span>
-                      <% } else if (item.mediaType === "image") { %>
-                        <span class="feed-item-summary-skipped feed-item-media-image feed-item-media-toggle" data-item-id="<%= item.id %>" title="Click to toggle embedded image. Click the image to open in new tab.">
-                          [🖼️ image]
-                        </span>
-                        <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
-                          <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer">
-                            <img src="<%= item.mediaUrl || item.url %>" alt="Embedded image" style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc; cursor: pointer;">
-                          </a>
-                        </span>
-                      <% } else if (item.mediaType === "video" && (item.mediaUrl || item.url).includes("youtube.com/watch") || (item.mediaUrl || item.url).includes("youtu.be/")) { %>
-                        <span class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle" data-item-id="<%= item.id %>">
-                          [🎬 video]
-                        </span>
-                        <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
-                          <% 
-                            // Extract YouTube video ID
-                            let ytId = null;
-                            try {
-                              const url = new URL(item.mediaUrl || item.url);
-                              if (url.hostname.includes("youtube.com")) {
-                                ytId = url.searchParams.get("v");
-                              } else if (url.hostname.includes("youtu.be")) {
-                                ytId = url.pathname.replace("/", "");
-                              }
-                            } catch (e) {}
-                          %>
-                          <% if (ytId) { %>
-                            <iframe width="400" height="225" src="https://www.youtube.com/embed/<%= ytId %>" frameborder="0" allowfullscreen style="margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></iframe>
-                          <% } else { %>
-                            <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer">Open video</a>
-                          <% } %>
-                        </span>
-                      <% } else if (item.mediaType === "video") { %>
-                        <span class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle" data-item-id="<%= item.id %>">
-                          [🎬 video]
-                        </span>
-                        <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
-                          <video src="<%= item.mediaUrl || item.url %>" controls style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></video>
-                        </span>
-                      <% } else if (item.mediaType) { %>
-                        <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-summary-skipped feed-item-media-<%= item.mediaType %>" data-item-id="<%= item.id %>" title="<%= item.content || 'Media content' %>">
-                          [<%= 
-                            item.mediaType === "audio" ? "🎵 audio ⬚↗" : 
-                            item.mediaType === "document" ? "📄 document ⬚↗" : 
-                            item.mediaType === "archive" ? "📦 archive ⬚↗" : 
-                            item.mediaType === "error" ? "⚠️ error" : 
-                            "💻 media ⬚↗"
-                          %>]
-                        </a>
-                      <% } else if (item.content && item.content.startsWith('[ERROR:')) { %>
-                        <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-summary-error" data-item-id="<%= item.id %>" title="<%= item.content %>">[⚠️ error loading content]</a>
-                      <% } else { %>
-                        <span class="feed-item-summary-not-available" data-item-id="<%= item.id %>">[no summary available]</span>
-                      <% } %>
-                      <% if (item.isPositive === true) { %>
-                        <span class="feed-item-sentiment positive" title="Positive content">😊</span>
-                      <% } else if (item.isPositive === false) { %>
-                        <span class="feed-item-sentiment negative" title="Neutral or negative content">😐</span>
-                      <% } else { %>
-                        <span class="feed-item-sentiment unknown" title="Sentiment not analyzed">❓</span>
-                      <% } %>
+                        <% } %>
+                          <% if (item.commentsUrl) { %>
+                            <a href="<%= item.commentsUrl %>" target="_blank" rel="noopener noreferrer"
+                              class="feed-item-comments-link">
+                              [hn]
+                            </a>
+                            <% } %>
+                              <% if (item.hasSummary) { %>
+                                <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[toggle ai
+                                  summary]</span>
+                                <% } else if (item.mediaType==="image" ) { %>
+                                  <span class="feed-item-summary-skipped feed-item-media-image feed-item-media-toggle"
+                                    data-item-id="<%= item.id %>"
+                                    title="Click to toggle embedded image. Click the image to open in new tab.">
+                                    [🖼️ image]
+                                  </span>
+                                  <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
+                                    <a href="<%= item.mediaUrl || item.url %>" target="_blank"
+                                      rel="noopener noreferrer">
+                                      <img src="<%= item.mediaUrl || item.url %>" alt="Embedded image"
+                                        style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc; cursor: pointer;">
+                                    </a>
+                                  </span>
+                                  <% } else if (item.mediaType==="video" && (item.mediaUrl ||
+                                    item.url).includes("youtube.com/watch") || (item.mediaUrl ||
+                                    item.url).includes("youtu.be/")) { %>
+                                    <span class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle"
+                                      data-item-id="<%= item.id %>">
+                                      [🎬 video]
+                                    </span>
+                                    <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
+                                      <% /* Extract YouTube video ID */ let ytId=null; try { const url=new
+                                        URL(item.mediaUrl || item.url); if (url.hostname.includes("youtube.com")) {
+                                        ytId=url.searchParams.get("v"); } else if (url.hostname.includes("youtu.be")) {
+                                        ytId=url.pathname.replace("/", "" ); } } catch (e) {} %>
+                                        <% if (ytId) { %>
+                                          <iframe width="400" height="225"
+                                            src="https://www.youtube.com/embed/<%= ytId %>" frameborder="0"
+                                            allowfullscreen
+                                            style="margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></iframe>
+                                          <% } else { %>
+                                            <a href="<%= item.mediaUrl || item.url %>" target="_blank"
+                                              rel="noopener noreferrer">Open video</a>
+                                            <% } %>
+                                    </span>
+                                    <% } else if (item.mediaType==="video" ) { %>
+                                      <span
+                                        class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle"
+                                        data-item-id="<%= item.id %>">
+                                        [🎬 video]
+                                      </span>
+                                      <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
+                                        <video src="<%= item.mediaUrl || item.url %>" controls
+                                          style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></video>
+                                      </span>
+                                      <% } else if (item.mediaType && !['text', 'short-text' ].includes(item.mediaType))
+                                        { %>
+                                        <a href="<%= item.mediaUrl || item.url %>" target="_blank"
+                                          rel="noopener noreferrer"
+                                          class="feed-item-summary-skipped feed-item-media-<%= item.mediaType %>"
+                                          data-item-id="<%= item.id %>" title="<%= item.content || 'Media content' %>">
+                                          [<%= item.mediaType==="audio" ? "🎵 audio ⬚↗" : item.mediaType==="document"
+                                            ? "📄 document ⬚↗" : item.mediaType==="archive" ? "📦 archive ⬚↗" :
+                                            item.mediaType==="error" ? "⚠️ error" : "💻 media ⬚↗" %>]
+                                        </a>
+                                        <% } else if (item.content && item.content.startsWith('[ERROR:')) { %>
+                                          <a href="<%= item.mediaUrl || item.url %>" target="_blank"
+                                            rel="noopener noreferrer" class="feed-item-summary-error"
+                                            data-item-id="<%= item.id %>" title="<%= item.content %>">[⚠️ error loading
+                                            content]</a>
+                                          <% } else { %>
+                                            <span class="feed-item-summary-not-available"
+                                              data-item-id="<%= item.id %>">[no summary available]</span>
+                                            <% } %>
+                                              <% if (item.isPositive===true) { %>
+                                                <span class="feed-item-sentiment positive"
+                                                  title="Positive content">😊</span>
+                                                <% } else if (item.isPositive===false) { %>
+                                                  <span class="feed-item-sentiment negative"
+                                                    title="Neutral or negative content">😐</span>
+                                                  <% } else { %>
+                                                    <span class="feed-item-sentiment unknown"
+                                                      title="Sentiment not analyzed">❓</span>
+                                                    <% } %>
                     </div>
                     <% if (item.summary) { %>
                       <div class="feed-item-summary hidden" id="summary-<%= item.id %>">
                         <%= item.summary %>
                       </div>
-                    <% } %>
-                  </div>
+                      <% } %>
+                </div>
                 <% }); %>
-              <% } else { %>
-                <p class="no-items">No recent items found for this feed</p>
-              <% } %>
-            </div>
+                  <% } else { %>
+                    <p class="no-items">No recent items found for this feed</p>
+                    <% } %>
           </div>
+        </div>
         <% }); %>
-      </div>
-      
-      <div class="footer">
-        <p class="source-code"><span>&lt;&gt;</span> <a href="https://github.com/felipesabino/rss" target="_blank" rel="noopener noreferrer">source code at GitHub</a></p>
-      </div>
     </div>
 
-    <script>
-      // Enable debug mode by adding ?debug=true to the URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const debugMode = urlParams.get('debug') === 'true';
-      
-      if (debugMode) {
-        console.log('Debug mode enabled');
-      }
-      
-      // Toggle media embed visibility
-      document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.feed-item-media-toggle').forEach(function(element) {
-          element.addEventListener('click', function() {
-            const itemId = this.getAttribute('data-item-id');
-            const mediaElement = document.getElementById('media-' + itemId);
-            if (mediaElement) {
-              mediaElement.classList.toggle('hidden');
-            }
-          });
-        });
-        // Dark mode toggle functionality
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const body = document.body;
-        
-        // Check for saved preference
-        const isDarkMode = localStorage.getItem('darkMode') === 'true';
-        
-        // Set initial state
-        if (isDarkMode) {
-          body.classList.add('dark-mode');
-          darkModeToggle.textContent = '☀️';
-        }
-        
-        // Toggle dark mode
-        darkModeToggle.addEventListener('click', function() {
-          const isDark = body.classList.toggle('dark-mode');
-          darkModeToggle.textContent = isDark ? '☀️' : '🌙';
-          localStorage.setItem('darkMode', isDark);
-        });
-        
-        // Good Vibes Only toggle functionality
-        const goodVibesToggle = document.getElementById('goodVibesToggle');
-        let goodVibesOnly = localStorage.getItem('goodVibesOnly') === 'true';
-        
-        // Set initial state
-        if (goodVibesOnly) {
-          goodVibesToggle.classList.add('active');
-          filterByPositiveSentiment(true);
-        } else {
-          goodVibesToggle.classList.remove('active');
-          filterByPositiveSentiment(false);
-        }
-        
-        // Toggle good vibes filter
-        goodVibesToggle.addEventListener('click', function() {
-          goodVibesOnly = !goodVibesOnly;
-          this.classList.toggle('active', goodVibesOnly);
-          localStorage.setItem('goodVibesOnly', goodVibesOnly);
-          filterByPositiveSentiment(goodVibesOnly);
-        });
-        
-        // Function to filter items by sentiment
-        function filterByPositiveSentiment(showOnlyPositive) {
-          if (debugMode) {
-            console.log(`Filtering items, showOnlyPositive: ${showOnlyPositive}`);
+    <div class="footer">
+      <p class="source-code"><span>&lt;&gt;</span> <a href="https://github.com/felipesabino/rss" target="_blank"
+          rel="noopener noreferrer">source code at GitHub</a></p>
+    </div>
+  </div>
+
+  <script>
+    // Enable debug mode by adding ?debug=true to the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const debugMode = urlParams.get('debug') === 'true';
+
+    if (debugMode) {
+      console.log('Debug mode enabled');
+    }
+
+    // Toggle media embed visibility
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.feed-item-media-toggle').forEach(function (element) {
+        element.addEventListener('click', function () {
+          const itemId = this.getAttribute('data-item-id');
+          const mediaElement = document.getElementById('media-' + itemId);
+          if (mediaElement) {
+            mediaElement.classList.toggle('hidden');
           }
-          
-          const feedItems = document.querySelectorAll('.feed-item');
-          let positiveCount = 0;
-          let negativeCount = 0;
-          
-          feedItems.forEach(function(item) {
-            const isPositive = item.getAttribute('data-positive') === 'true';
-            
-            if (debugMode) {
-              const itemTitle = item.querySelector('.feed-item-link').textContent.trim();
-              console.log(`Item: "${itemTitle.substring(0, 30)}...", isPositive: ${isPositive}`);
-            }
-            
-            if (isPositive) {
-              positiveCount++;
-            } else {
-              negativeCount++;
-            }
-            
-            if (showOnlyPositive) {
-              if (isPositive) {
-                item.style.display = '';
-              } else {
-                item.style.display = 'none';
-              }
-            } else {
-              item.style.display = '';
-            }
-          });
-          
-          if (debugMode) {
-            console.log(`Total items: ${feedItems.length}, Positive: ${positiveCount}, Negative/Neutral: ${negativeCount}`);
-          }
-          
-          // Show/hide "no items" message for feeds
-          document.querySelectorAll('.feed').forEach(function(feed) {
-            const feedTitle = feed.querySelector('.feed-title-link').textContent.trim();
-            
-            // Count visible items correctly by checking display property
-            const allItems = Array.from(feed.querySelectorAll('.feed-item'));
-            const visibleItems = allItems.filter(item => item.style.display !== 'none');
-            
-            if (debugMode) {
-              console.log(`Feed: "${feedTitle}", Total items: ${allItems.length}, Visible items: ${visibleItems.length}`);
-            }
-            
-            const feedItems = feed.querySelector('.feed-items');
-            
-            if (visibleItems.length === 0 && showOnlyPositive) {
-              // Create "no positive items" message if it doesn't exist
-              let noPositiveItems = feed.querySelector('.no-positive-items');
-              if (!noPositiveItems) {
-                noPositiveItems = document.createElement('p');
-                noPositiveItems.className = 'no-positive-items';
-                noPositiveItems.textContent = 'No positive items found for this feed';
-                feedItems.appendChild(noPositiveItems);
-              }
-              noPositiveItems.style.display = '';
-            } else {
-              // Hide "no positive items" message if it exists
-              const noPositiveItems = feed.querySelector('.no-positive-items');
-              if (noPositiveItems) {
-                noPositiveItems.style.display = 'none';
-              }
-            }
-          });
-        }
-        
-        // Add click event listeners to all summary toggle elements
-        document.querySelectorAll('.feed-item-summary-toggle').forEach(function(element) {
-          element.addEventListener('click', function() {
-            const itemId = this.getAttribute('data-item-id');
-            const summaryElement = document.getElementById('summary-' + itemId);
-            if (summaryElement) {
-              summaryElement.classList.toggle('hidden');
-            }
-          });
-        });
-        
-        // Category filter functionality
-        const categoryItems = document.querySelectorAll('.category-item');
-        const feeds = document.querySelectorAll('.feed');
-        
-        // Get selected categories from localStorage or default to ['all']
-        let selectedCategories = [];
-        try {
-          const savedCategories = localStorage.getItem('selectedCategories');
-          selectedCategories = savedCategories ? JSON.parse(savedCategories) : ['all'];
-        } catch (e) {
-          selectedCategories = ['all'];
-        }
-        
-        // Function to filter feeds by categories
-        function filterFeeds(categories) {
-          // If 'all' is selected, clear other selections
-          if (categories.includes('all')) {
-            categories = ['all'];
-          }
-          
-          // If no categories are selected, default to 'all'
-          if (categories.length === 0) {
-            categories = ['all'];
-          }
-          
-          // Update active state on category items
-          categoryItems.forEach(item => {
-            const itemCategory = item.getAttribute('data-category');
-            if (categories.includes(itemCategory)) {
-              item.classList.add('active');
-            } else {
-              item.classList.remove('active');
-            }
-          });
-          
-          // Show/hide feeds based on selected categories
-          feeds.forEach(feed => {
-            if (categories.includes('all')) {
-              feed.style.display = '';
-            } else {
-              const feedCategories = feed.getAttribute('data-categories').split(' ').map(cat => decodeURIComponent(cat));
-              // Show feed if it matches ANY of the selected categories
-              const hasMatchingCategory = feedCategories.some(cat => categories.includes(cat));
-              feed.style.display = hasMatchingCategory ? '' : 'none';
-            }
-          });
-          
-          // Save selection to localStorage
-          localStorage.setItem('selectedCategories', JSON.stringify(categories));
-        }
-        
-        // Apply initial filter based on saved preference
-        filterFeeds(selectedCategories);
-        
-        // Add click event listeners to category items
-        categoryItems.forEach(item => {
-          item.addEventListener('click', function() {
-            const category = this.getAttribute('data-category');
-            
-            // Handle 'all' category specially
-            if (category === 'all') {
-              selectedCategories = ['all'];
-            } else {
-              // Remove 'all' if it's currently selected
-              if (selectedCategories.includes('all')) {
-                selectedCategories = [];
-              }
-              
-              // Toggle the selected category
-              if (selectedCategories.includes(category)) {
-                selectedCategories = selectedCategories.filter(cat => cat !== category);
-              } else {
-                selectedCategories.push(category);
-              }
-            }
-            
-            filterFeeds(selectedCategories);
-          });
         });
       });
-    </script>
-  </body>
+      // Dark mode toggle functionality
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      const body = document.body;
+
+      // Check for saved preference
+      const isDarkMode = localStorage.getItem('darkMode') === 'true';
+
+      // Set initial state
+      if (isDarkMode) {
+        body.classList.add('dark-mode');
+        darkModeToggle.textContent = '☀️';
+      }
+
+      // Toggle dark mode
+      darkModeToggle.addEventListener('click', function () {
+        const isDark = body.classList.toggle('dark-mode');
+        darkModeToggle.textContent = isDark ? '☀️' : '🌙';
+        localStorage.setItem('darkMode', isDark);
+      });
+
+      // Good Vibes Only toggle functionality
+      const goodVibesToggle = document.getElementById('goodVibesToggle');
+      let goodVibesOnly = localStorage.getItem('goodVibesOnly') === 'true';
+
+      // Set initial state
+      if (goodVibesOnly) {
+        goodVibesToggle.classList.add('active');
+        filterByPositiveSentiment(true);
+      } else {
+        goodVibesToggle.classList.remove('active');
+        filterByPositiveSentiment(false);
+      }
+
+      // Toggle good vibes filter
+      goodVibesToggle.addEventListener('click', function () {
+        goodVibesOnly = !goodVibesOnly;
+        this.classList.toggle('active', goodVibesOnly);
+        localStorage.setItem('goodVibesOnly', goodVibesOnly);
+        filterByPositiveSentiment(goodVibesOnly);
+      });
+
+      // Function to filter items by sentiment
+      function filterByPositiveSentiment(showOnlyPositive) {
+        if (debugMode) {
+          console.log(`Filtering items, showOnlyPositive: ${showOnlyPositive}`);
+        }
+
+        const feedItems = document.querySelectorAll('.feed-item');
+        let positiveCount = 0;
+        let negativeCount = 0;
+
+        feedItems.forEach(function (item) {
+          const isPositive = item.getAttribute('data-positive') === 'true';
+
+          if (debugMode) {
+            const itemTitle = item.querySelector('.feed-item-link').textContent.trim();
+            console.log(`Item: "${itemTitle.substring(0, 30)}...", isPositive: ${isPositive}`);
+          }
+
+          if (isPositive) {
+            positiveCount++;
+          } else {
+            negativeCount++;
+          }
+
+          if (showOnlyPositive) {
+            if (isPositive) {
+              item.style.display = '';
+            } else {
+              item.style.display = 'none';
+            }
+          } else {
+            item.style.display = '';
+          }
+        });
+
+        if (debugMode) {
+          console.log(`Total items: ${feedItems.length}, Positive: ${positiveCount}, Negative/Neutral: ${negativeCount}`);
+        }
+
+        // Show/hide "no items" message for feeds
+        document.querySelectorAll('.feed').forEach(function (feed) {
+          const feedTitle = feed.querySelector('.feed-title-link').textContent.trim();
+
+          // Count visible items correctly by checking display property
+          const allItems = Array.from(feed.querySelectorAll('.feed-item'));
+          const visibleItems = allItems.filter(item => item.style.display !== 'none');
+
+          if (debugMode) {
+            console.log(`Feed: "${feedTitle}", Total items: ${allItems.length}, Visible items: ${visibleItems.length}`);
+          }
+
+          const feedItems = feed.querySelector('.feed-items');
+
+          if (visibleItems.length === 0 && showOnlyPositive) {
+            // Create "no positive items" message if it doesn't exist
+            let noPositiveItems = feed.querySelector('.no-positive-items');
+            if (!noPositiveItems) {
+              noPositiveItems = document.createElement('p');
+              noPositiveItems.className = 'no-positive-items';
+              noPositiveItems.textContent = 'No positive items found for this feed';
+              feedItems.appendChild(noPositiveItems);
+            }
+            noPositiveItems.style.display = '';
+          } else {
+            // Hide "no positive items" message if it exists
+            const noPositiveItems = feed.querySelector('.no-positive-items');
+            if (noPositiveItems) {
+              noPositiveItems.style.display = 'none';
+            }
+          }
+        });
+      }
+
+      // Add click event listeners to all summary toggle elements
+      document.querySelectorAll('.feed-item-summary-toggle').forEach(function (element) {
+        element.addEventListener('click', function () {
+          const itemId = this.getAttribute('data-item-id');
+          const summaryElement = document.getElementById('summary-' + itemId);
+          if (summaryElement) {
+            summaryElement.classList.toggle('hidden');
+          }
+        });
+      });
+
+      // Category filter functionality
+      const categoryItems = document.querySelectorAll('.category-item');
+      const feeds = document.querySelectorAll('.feed');
+
+      // Get selected categories from localStorage or default to ['all']
+      let selectedCategories = [];
+      try {
+        const savedCategories = localStorage.getItem('selectedCategories');
+        selectedCategories = savedCategories ? JSON.parse(savedCategories) : ['all'];
+      } catch (e) {
+        selectedCategories = ['all'];
+      }
+
+      // Function to filter feeds by categories
+      function filterFeeds(categories) {
+        // If 'all' is selected, clear other selections
+        if (categories.includes('all')) {
+          categories = ['all'];
+        }
+
+        // If no categories are selected, default to 'all'
+        if (categories.length === 0) {
+          categories = ['all'];
+        }
+
+        // Update active state on category items
+        categoryItems.forEach(item => {
+          const itemCategory = item.getAttribute('data-category');
+          if (categories.includes(itemCategory)) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
+
+        // Show/hide feeds based on selected categories
+        feeds.forEach(feed => {
+          if (categories.includes('all')) {
+            feed.style.display = '';
+          } else {
+            const feedCategories = feed.getAttribute('data-categories').split(' ').map(cat => decodeURIComponent(cat));
+            // Show feed if it matches ANY of the selected categories
+            const hasMatchingCategory = feedCategories.some(cat => categories.includes(cat));
+            feed.style.display = hasMatchingCategory ? '' : 'none';
+          }
+        });
+
+        // Save selection to localStorage
+        localStorage.setItem('selectedCategories', JSON.stringify(categories));
+      }
+
+      // Apply initial filter based on saved preference
+      filterFeeds(selectedCategories);
+
+      // Add click event listeners to category items
+      categoryItems.forEach(item => {
+        item.addEventListener('click', function () {
+          const category = this.getAttribute('data-category');
+
+          // Handle 'all' category specially
+          if (category === 'all') {
+            selectedCategories = ['all'];
+          } else {
+            // Remove 'all' if it's currently selected
+            if (selectedCategories.includes('all')) {
+              selectedCategories = [];
+            }
+
+            // Toggle the selected category
+            if (selectedCategories.includes(category)) {
+              selectedCategories = selectedCategories.filter(cat => cat !== category);
+            } else {
+              selectedCategories.push(category);
+            }
+          }
+
+          filterFeeds(selectedCategories);
+        });
+      });
+    });
+  </script>
+</body>
+
 </html>

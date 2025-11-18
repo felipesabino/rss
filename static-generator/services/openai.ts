@@ -9,7 +9,7 @@ export async function summarizeText(text: string): Promise<string> {
   }
 
   // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-  const openai = new OpenAI({ 
+  const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     baseURL: process.env.OPENAI_API_BASE_URL
   });
@@ -20,13 +20,13 @@ export async function summarizeText(text: string): Promise<string> {
   try {
     // Use a default model if not specified in environment variables
     const modelName = process.env.OPENAI_MODEL_NAME || "gpt-3.5-turbo";
-    
+
     const response = await openai.chat.completions.create({
       model: modelName,
       messages: [
         {
           role: "system",
-          content: "You are a skilled content summarizer. Create a concise summary of the provided text. Focus on the key points and main ideas, and regardless of the text's language, provide the summary in english."
+          content: "You are a skilled content summarizer. Create a concise summary of the provided text. Focus on the key points and main ideas. Regardless of the text's language, provide the summary in English. Output ONLY the summary text. Do not start with 'Summary:', 'Here is a summary', or dashes. Do not use conversational fillers."
         },
         {
           role: "user",
@@ -39,7 +39,21 @@ export async function summarizeText(text: string): Promise<string> {
       maxRetries: 3
     });
 
-    return response.choices[0]?.message?.content || "Summary not available.";
+    let summary = response.choices[0]?.message?.content || "Summary not available.";
+
+    // Clean up the summary
+    summary = summary.trim();
+
+    // Remove "Summary:" or "Here is a summary:" prefixes (case insensitive)
+    summary = summary.replace(/^(summary|here is a summary|this text is about|the text describes)[:\s-]*/i, "");
+
+    // Remove leading dashes or bullets
+    summary = summary.replace(/^[\s\-\*]+/, "");
+
+    // Remove "what is this" type prefixes if they appear (though less likely with the new prompt)
+    summary = summary.replace(/^what is this[:\s]*/i, "");
+
+    return summary.trim();
   } catch (error) {
     console.error("Error generating summary:", error);
     return "Error generating summary.";
@@ -55,7 +69,7 @@ export async function analyzeSentiment(text: string): Promise<boolean> {
   }
 
   // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-  const openai = new OpenAI({ 
+  const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     baseURL: process.env.OPENAI_API_BASE_URL
   });
@@ -64,10 +78,10 @@ export async function analyzeSentiment(text: string): Promise<boolean> {
 
   try {
     console.log(`Analyzing sentiment for text (length: ${truncatedText.length})`);
-    
+
     // Use the specified model or fall back to the summary model or a default if not available
     const modelName = process.env.OPENAI_SENTIMENT_MODEL_NAME || process.env.OPENAI_MODEL_NAME || "gpt-3.5-turbo";
-    
+
     const response = await openai.chat.completions.create({
       model: modelName,
       messages: [
@@ -88,7 +102,7 @@ export async function analyzeSentiment(text: string): Promise<boolean> {
 
     const result = response.choices[0]?.message?.content?.trim().toLowerCase();
     console.log(`Sentiment analysis result: "${result}"`);
-    
+
     // Handle various possible responses
     if (result === 'true' || result === '"true"') {
       return true;

@@ -11,15 +11,15 @@ export function isNonTextContent(url: string): { skip: boolean; reason: string; 
   try {
     // Parse the URL
     const parsedUrl = new URL(url);
-    
+
     // Check domain
     const domain = parsedUrl.hostname.replace('www.', '');
-    
+
     // Media hosting domains
     if (NON_TEXT_DOMAINS.some(nonTextDomain => domain.includes(nonTextDomain))) {
       // Determine media type based on domain
       let mediaType = 'media';
-      
+
       if (domain.includes('youtube') || domain.includes('vimeo') || domain.includes('dailymotion') || domain.includes('twitch')) {
         mediaType = 'video';
       } else if (domain.includes('spotify') || domain.includes('soundcloud')) {
@@ -29,21 +29,21 @@ export function isNonTextContent(url: string): { skip: boolean; reason: string; 
       } else if (domain.includes('drive.google') || domain.includes('docs.google') || domain.includes('dropbox')) {
         mediaType = 'document';
       }
-      
-      return { 
-        skip: true, 
+
+      return {
+        skip: true,
         reason: `Media hosting domain detected: ${domain}`,
         mediaType,
         mediaUrl: url
       };
     }
-    
+
     // Check file extension
     const extension = path.extname(parsedUrl.pathname).toLowerCase();
     if (extension && NON_TEXT_EXTENSIONS.includes(extension)) {
       // Determine media type based on extension
       let mediaType = 'media';
-      
+
       if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico'].includes(extension)) {
         mediaType = 'image';
       } else if (['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm'].includes(extension)) {
@@ -55,25 +55,25 @@ export function isNonTextContent(url: string): { skip: boolean; reason: string; 
       } else if (['.zip', '.rar', '.tar', '.gz', '.7z'].includes(extension)) {
         mediaType = 'archive';
       }
-      
-      return { 
-        skip: true, 
+
+      return {
+        skip: true,
         reason: `Non-text file extension detected: ${extension}`,
         mediaType,
         mediaUrl: url
       };
     }
-    
+
     // Check for query parameters that might indicate media content
     if (parsedUrl.searchParams.has('v') && domain === 'youtube.com') {
-      return { 
-        skip: true, 
+      return {
+        skip: true,
         reason: 'YouTube video detected',
         mediaType: 'video',
         mediaUrl: url
       };
     }
-    
+
     return { skip: false, reason: '' };
   } catch (error) {
     console.error(`Error checking URL ${url}:`, error);
@@ -86,20 +86,20 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
   const nonTextCheck = isNonTextContent(url);
   if (nonTextCheck.skip) {
     console.log(`Skipping content extraction for ${url}: ${nonTextCheck.reason}`);
-    return { 
-      content: '', 
+    return {
+      content: '',
       skipReason: nonTextCheck.reason,
       mediaType: nonTextCheck.mediaType,
       mediaUrl: nonTextCheck.mediaUrl
     };
   }
-  
+
   //handle reddit
   let urlProcessed = url;
   if (url.includes('www.reddit.com')) {
     urlProcessed = url.replace('www.reddit.com', 'old.reddit.com');
   };
-  
+
   try {
     const response = await got(urlProcessed, {
       timeout: {
@@ -111,13 +111,13 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
     });
     // Check content type header to avoid processing binary files
     const contentType = response.headers['content-type'] || '';
-    if (contentType.includes('image/') || 
-        contentType.includes('video/') || 
-        contentType.includes('audio/') ||
-        contentType.includes('application/pdf') ||
-        contentType.includes('application/zip') ||
-        contentType.includes('application/x-rar')) {
-      
+    if (contentType.includes('image/') ||
+      contentType.includes('video/') ||
+      contentType.includes('audio/') ||
+      contentType.includes('application/pdf') ||
+      contentType.includes('application/zip') ||
+      contentType.includes('application/x-rar')) {
+
       let mediaType = 'media';
       if (contentType.includes('image/')) {
         mediaType = 'image';
@@ -130,40 +130,77 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
       } else if (contentType.includes('application/zip') || contentType.includes('application/x-rar')) {
         mediaType = 'archive';
       }
-      
+
       console.log(`Skipping content extraction for ${url}: Non-text content type detected: ${contentType}`);
-      return { 
-        content: '', 
+      return {
+        content: '',
         skipReason: `Non-text content type: ${contentType}`,
         mediaType,
         mediaUrl: url
       };
     }
-    
+
     const html = response.body;
     const $ = cheerio.load(html);
+
+    // Remove script tags, style tags, and comments BEFORE analyzing content
+    $('script').remove();
+    $('style').remove();
+    $('noscript').remove();
+    $('header').remove();
+    $('footer').remove();
+    $('nav').remove();
+    $('aside').remove();
 
     // Check for common indicators of non-text content
     const iframeCount = $('iframe').length;
     const videoEmbeds = $('video, .video-container, .youtube-container, [class*="video"], [id*="video"]').length;
     const imageCount = $('img').length;
     const audioEmbeds = $('audio, [class*="audio"], [id*="audio"]').length;
-    
+
     // Extract the body text first to evaluate content amount
-    const bodyText = $('body').text().trim();
-    const textLength = bodyText.length;
-    
+    // Use a more targeted extraction if possible to avoid navigation noise
+    let content = '';
+    const possibleContainers = [
+      'article',
+      '[role="main"]',
+      '.post-content',
+      '.article-content',
+      '.entry-content',
+      '.content',
+      'main',
+      '#main-content',
+      '.story-body',
+      '.usertext-body', // Reddit
+      '.entry',         // Reddit fallback
+    ];
+
+    for (const selector of possibleContainers) {
+      const element = $(selector);
+      if (element.length > 0) {
+        content = element.text().trim();
+        break;
+      }
+    }
+
+    // Fallback to body if no content found
+    if (!content) {
+      content = $('body').text().trim();
+    }
+
+    const textLength = content.length;
+
     // Check for media-heavy content, but only skip if there's not enough text
     if (iframeCount > 0 || videoEmbeds > 0) {
       // Check specifically for video embeds
       const youtubeEmbed = $('iframe[src*="youtube"], iframe[src*="youtu.be"]').length > 0;
       const vimeoEmbed = $('iframe[src*="vimeo"]').length > 0;
-      
+
       // If it's a YouTube or Vimeo embed with very little text, skip extraction
-      // but use a higher threshold (1000 chars) to ensure we're not missing substantial content
-      if ((youtubeEmbed || vimeoEmbed) && textLength < 1000) {
+      // Lower threshold to 500 chars to allow for short descriptions
+      if ((youtubeEmbed || vimeoEmbed) && textLength < 500) {
         const platform = youtubeEmbed ? 'YouTube' : 'Vimeo';
-        
+
         // Extract the embed URL
         let mediaUrl = url;
         if (youtubeEmbed) {
@@ -179,7 +216,7 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
             mediaUrl = embedSrc;
           }
         }
-        
+
         console.log(`Skipping content extraction for ${url}: ${platform} video embed detected with limited text (${textLength} chars)`);
         return {
           content: '',
@@ -188,10 +225,16 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
           mediaUrl
         };
       }
-      
+
       // For generic iframe or video embed, only skip if there's very little text
-      // Use a threshold based on the number of embeds - more embeds require more text to justify extraction
-      const textThreshold = Math.max(500, (iframeCount + videoEmbeds) * 200);
+      // Lower threshold to avoid false positives on news sites with video players
+      let textThreshold = Math.max(300, (iframeCount + videoEmbeds) * 100);
+
+      // For Reddit, be more lenient as it often has iframes but valid text content
+      if (url.includes('reddit.com')) {
+        textThreshold = 100;
+      }
+
       if (textLength < textThreshold) {
         // Try to extract a media URL from any iframe or video element
         let mediaUrl = url;
@@ -204,7 +247,7 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
             mediaUrl = firstVideo.attr('src') || url;
           }
         }
-        
+
         console.log(`Skipping content extraction for ${url}: Media embed detected (${iframeCount} iframes, ${videoEmbeds} videos) with limited text (${textLength} chars)`);
         return {
           content: '',
@@ -216,9 +259,10 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
         console.log(`Found media embeds (${iframeCount} iframes, ${videoEmbeds} videos) but also substantial text (${textLength} chars), proceeding with extraction`);
       }
     }
-    
+
     // Check for image galleries or audio content, but only skip if there's not enough text
-    if (imageCount > 5 && textLength < 1000) {
+    // Increased image count threshold and decreased text threshold
+    if (imageCount > 10 && textLength < 300) {
       // Try to extract the first image URL
       let mediaUrl = url;
       const firstImage = $('img').first();
@@ -233,7 +277,7 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
           }
         }
       }
-      
+
       console.log(`Skipping content extraction for ${url}: Likely image gallery (${imageCount} images) with limited text (${textLength} chars)`);
       return {
         content: '',
@@ -242,9 +286,9 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
         mediaUrl
       };
     }
-    
+
     // For audio embeds, require more text to justify extraction
-    if (audioEmbeds > 0 && textLength < 800) {
+    if (audioEmbeds > 0 && textLength < 300) {
       // Try to extract the audio URL
       let mediaUrl = url;
       const audioElement = $('audio source').first();
@@ -259,7 +303,7 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
           }
         }
       }
-      
+
       console.log(`Skipping content extraction for ${url}: Audio content detected with limited text (${textLength} chars)`);
       return {
         content: '',
@@ -269,53 +313,21 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
       };
     }
 
-    // Remove script tags, style tags, and comments
-    $('script').remove();
-    $('style').remove();
-    $('noscript').remove();
+    // Remove iframes after checking for them
     $('iframe').remove();
-    $('header').remove();
-    $('footer').remove();
-    $('nav').remove();
-    $('aside').remove();
-    
-    // Find the main content
-    let content = '';
-    const possibleContainers = [
-      'article',
-      '[role="main"]',
-      '.post-content',
-      '.article-content',
-      '.entry-content',
-      '.content',
-      'main',
-    ];
 
-    for (const selector of possibleContainers) {
-      const element = $(selector);
-      if (element.length > 0) {
-        content = element.text().trim();
-        break;
-      }
-    }
-
-    // Fallback to body if no content found
-    if (!content) {
-      content = $('body').text().trim();
-    }
-    
     // Check if the extracted content is too short or likely not meaningful
     if (content.length < 100) {
       console.log(`Extracted content from ${url} is very short (${content.length} chars), may not be suitable for analysis`);
-      
+
       // If content is extremely short, treat it as non-text
       if (content.length < 50) {
-      return {
-        content: '',
-        skipReason: `Insufficient text content (${content.length} chars)`,
-        mediaType: 'unknown',
-        mediaUrl: url
-      };
+        return {
+          content: '',
+          skipReason: `Insufficient text content (${content.length} chars)`,
+          mediaType: 'unknown',
+          mediaUrl: url
+        };
       }
     }
 
@@ -334,13 +346,13 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
     return { content };
   } catch (error: any) {
     console.error(`Error extracting content from ${url}:`, error.message || error.toString().substring(0, 100) || 'Unknown error');
-    
+
     // Try to determine if it's a non-text URL based on the error
     const errorMessage = error.toString().toLowerCase();
-    if (errorMessage.includes('unsupported protocol') || 
-        errorMessage.includes('invalid content-type') ||
-        errorMessage.includes('content-length')) {
-      
+    if (errorMessage.includes('unsupported protocol') ||
+      errorMessage.includes('invalid content-type') ||
+      errorMessage.includes('content-length')) {
+
       return {
         content: '',
         skipReason: 'Error suggesting non-text content',
@@ -348,7 +360,7 @@ export async function contentExtractor(url: string): Promise<{ content: string; 
         mediaUrl: url
       };
     }
-    
+
     return { content: '', mediaUrl: url };
   }
 }
