@@ -53,6 +53,8 @@ jobs:
 
     - name: Run static generator
       env:
+        GOOGLE_SEARCH_CX_DEFAULT: ${{ secrets.GOOGLE_SEARCH_CX_DEFAULT }}
+        GOOGLE_SEARCH_API_KEY: ${{ secrets.GOOGLE_SEARCH_API_KEY }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         OPENAI_API_BASE_URL: "https://api.openai.com/v1/"
         OPENAI_MODEL_NAME: gpt-5-nano
