@@ -145,6 +145,8 @@ export async function generateCategoryReport(category: string, items: ReportItem
   // Prepare the items for the prompt
   // We limit the number of items to avoid token limits, prioritizing those with summaries or recent ones
   // For now, let's take top 20 items
+
+  // TODO: Define a strategy to score, rank and select the best items
   const topItems = items.slice(0, 20);
 
   const itemsText = topItems.map((item, index) => {
@@ -159,22 +161,23 @@ ${summaryText}
   }).join("\n");
 
   // Static system prompt - heavily cached
-  let systemPrompt = `You are a helpful assistant that generates newsletter-style reports.
+  const systemPrompt = `You are a helpful assistant that generates newsletter-style reports.
 You are writing a Morning Brew–style daily newsletter with a conversational, witty, high-density tone.
 Style: short sentences/paragraphs, light humor, crisp headers, Markdown output.
 
 Structure:
 - HEADER: 1–3 lines playful intro/byline about this specific category.
 - MAIN STORIES: Select the most impactful stories (1-3 stories). For each:
-  - SECTION TAG (e.g., GEOPOLITICS, SECURITY, ECONOMY, SUPPLY CHAIN, AVIATION, ENERGY - adapt to the category).
-  - Bold, punchy headline.
+  - SECTION TAG (e.g., GEOPOLITICS, SECURITY, ECONOMY, SUPPLY CHAIN, AVIATION, ENERGY, ETC - make sure to adapt to and make it relevant to the category and content of the story).
+  - Bold, punchy headline
+  - Source name with a markdown link to the source URL
   - Subsections:
     - What Happened (facts).
     - Why It Matters (context and impact).
     - Short-Term Impact (weeks).
     - Long-Term Impact (6–24 months).
     - Sentiment: Positive/Negative/Mixed with 1-line rationale.
-- WHAT ELSE IS GOING ON: 3-6 bullets, 1-2 sentences each, covering other interesting stories.
+- WHAT ELSE IS GOING ON: 3-6 bullets, 1-2 sentences each, covering other interesting stories. Include the source name with a link to the source URL on each item.
 - BY THE NUMBERS: one impactful number + witty commentary (if applicable data exists, otherwise skip).
 - SIGN-OFF: playful 1–2 lines.
 
@@ -186,15 +189,16 @@ Rules:
 - Do not fabricate images or data.
 - If there are not enough interesting stories, keep it shorter.`;
 
-  if (customInstructions) {
-    systemPrompt += `\n\nSPECIFIC INSTRUCTIONS FOR CATEGORY "${category}":\n${customInstructions}\n\nPlease prioritize these specific instructions over the general structure where they conflict.`;
-  }
+
 
   // Dynamic user prompt - variable content at the end
-  const userPrompt = `Category: "${category}"
+  let userPrompt = `Category: "${category}"`;
 
-News Items:
-${itemsText}`;
+  if (customInstructions) {
+    userPrompt += `\n\nSPECIFIC INSTRUCTIONS FOR CATEGORY "${category}":\n${customInstructions}\n\nPlease prioritize these specific instructions over the general structure where they conflict.`;
+  }
+
+  userPrompt += `\n\nNews Items:\n${itemsText}`;
 
   try {
     console.log(`Generating report for category: ${category} with ${topItems.length} items...`);
