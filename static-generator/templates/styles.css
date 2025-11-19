@@ -227,40 +227,49 @@ body {
 }
 
 .feed-item-summary-skipped {
-  color: #9c27b0; /* Purple for general media content */
+  color: #9c27b0;
+  /* Purple for general media content */
 }
 
 .feed-item-media-image {
-  color: #2196f3; /* Blue for images */
+  color: #2196f3;
+  /* Blue for images */
 }
 
 .feed-item-media-video {
-  color: #f44336; /* Red for videos */
+  color: #f44336;
+  /* Red for videos */
 }
 
 .feed-item-media-audio {
-  color: #4caf50; /* Green for audio */
+  color: #4caf50;
+  /* Green for audio */
 }
 
 .feed-item-media-pdf,
 .feed-item-media-document {
-  color: #ff9800; /* Orange for PDFs and documents */
+  color: #ff9800;
+  /* Orange for PDFs and documents */
 }
 
 .feed-item-media-archive {
-  color: #795548; /* Brown for archives */
+  color: #795548;
+  /* Brown for archives */
 }
 
 .feed-item-media-error {
-  color: #f44336; /* Red for errors */
+  color: #f44336;
+  /* Red for errors */
 }
 
 .feed-item-media-unknown {
-  color: #9e9e9e; /* Grey for unknown types */
+  color: #9e9e9e;
+  /* Grey for unknown types */
 }
 
 .feed-item-summary-error {
-  color: #f44336; /* Red for errors */
+  color: #f44336;
+  /* Red for errors */
   cursor: help;
 }
 
@@ -386,4 +395,136 @@ body {
 
 .source-code a:hover {
   text-decoration: underline;
+}
+
+/* Report Section Styles */
+.report-section-wrapper {
+  margin-bottom: 2rem;
+}
+
+.report-toggle-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  transition: background-color 0.3s, color 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.report-toggle-btn:hover {
+  background-color: var(--border);
+}
+
+.report-toggle-btn.active {
+  background-color: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+
+.report-container {
+  background-color: var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+}
+
+.dark-mode .report-container {
+  background-color: #27272a;
+}
+
+.category-report {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.report-content {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+
+.report-content h1,
+.report-content h2,
+.report-content h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: bold;
+  line-height: 1.3;
+}
+
+.report-content h1 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid var(--muted-foreground);
+  padding-bottom: 0.5rem;
+}
+
+.report-content h2 {
+  font-size: 1.25rem;
+}
+
+.report-content h3 {
+  font-size: 1.1rem;
+}
+
+.report-content p {
+  margin-bottom: 1rem;
+}
+
+.report-content ul,
+.report-content ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.report-content li {
+  margin-bottom: 0.5rem;
+}
+
+.report-content strong {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.report-content blockquote {
+  border-left: 4px solid var(--muted-foreground);
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-bottom: 1rem;
+  font-style: italic;
+  color: var(--muted-foreground);
+}
+
+.report-meta {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--muted-foreground);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-align: right;
+}
+
+/* Adjust hidden class to be more specific if needed, but global .hidden works */
+.hidden,
+.report-toggle-btn.hidden,
+.report-container.hidden,
+.category-report.hidden {
+  display: none !important;
 }

@@ -13,7 +13,7 @@ export interface GoogleSearchItem {
     pubDate?: string; // Normalized
 }
 
-export async function searchGoogleForQuery(query: string, num: number = 10): Promise<GoogleSearchItem[]> {
+export async function searchGoogleForQuery(query: string, num: number = 10, dateRestrict: string = 'd1'): Promise<GoogleSearchItem[]> {
     const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
     const cx = process.env.GOOGLE_SEARCH_CX_DEFAULT;
 
@@ -30,7 +30,7 @@ export async function searchGoogleForQuery(query: string, num: number = 10): Pro
         q: query,
         num: Math.min(Math.max(num, 1), 10),
         safe: 'off',
-        dateRestrict: 'd1', // Restrict results to the last 24 hours (1 day)
+        dateRestrict, // Use the provided dateRestrict
     };
 
     try {

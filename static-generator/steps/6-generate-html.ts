@@ -3,6 +3,9 @@ import path from 'path';
 import ejs from 'ejs';
 import { sources, getAllCategories } from '../../config/sources';
 import { loadAIProcessedContentCache, AIProcessedItem } from './4-process-with-openai';
+import { loadReportsCache } from './5-generate-reports';
+
+import { marked } from 'marked';
 
 // Path to the output directory
 const OUTPUT_DIR = path.join(process.cwd(), 'dist');
@@ -11,7 +14,7 @@ const OUTPUT_DIR = path.join(process.cwd(), 'dist');
  * Generate static HTML site using the AI processed content from Step 4
  */
 export async function generateStaticSite(): Promise<void> {
-  console.log('Step 5: Generating static HTML site...');
+  console.log('Step 6: Generating static HTML site...');
 
   // Load the AI processed content from Step 4
   const aiProcessedCache = await loadAIProcessedContentCache();
@@ -21,7 +24,11 @@ export async function generateStaticSite(): Promise<void> {
     return;
   }
 
+  // Load the reports from Step 5
+  const reportsCache = await loadReportsCache();
+
   console.log(`Loaded AI processed content from cache (last updated: ${new Date(aiProcessedCache.lastUpdated).toLocaleString()})`);
+  console.log(`Loaded ${reportsCache.reports.length} category reports from cache`);
   console.log(`Total items: ${aiProcessedCache.items.length}`);
 
   // Create output directory if it doesn't exist
@@ -62,11 +69,20 @@ export async function generateStaticSite(): Promise<void> {
   // Get all categories
   const categories = getAllCategories();
 
+  // Process reports to include HTML content
+  const processedReports = await Promise.all(reportsCache.reports.map(async report => {
+    return {
+      ...report,
+      htmlContent: await marked.parse(report.report)
+    };
+  }));
+
   const html = ejs.render(template, {
     feeds: sources, // Pass sources as feeds to the template for backward compatibility
     itemsByFeed,
     feedMetadata: aiProcessedCache.feedMetadata,
     categories,
+    reports: processedReports,
     formatDate: (date: Date) => {
       return date.toLocaleDateString(['fr-FR'], { hour: '2-digit', minute: '2-digit' });
     }
@@ -79,7 +95,7 @@ export async function generateStaticSite(): Promise<void> {
   const cssContent = await fs.readFile(path.join(process.cwd(), 'static-generator/templates/styles.css'), 'utf-8');
   await fs.writeFile(path.join(OUTPUT_DIR, 'styles.css'), cssContent);
 
-  console.log(`Step 5 complete: Static site generated successfully in ${OUTPUT_DIR}`);
+  console.log(`Step 6 complete: Static site generated successfully in ${OUTPUT_DIR}`);
 }
 
 // Main function to run this step independently

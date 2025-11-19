@@ -6,6 +6,8 @@ export const sourceConfigSchema = z.object({
   name: z.string(),
   url: z.string().optional(), // URL is optional for google-search
   query: z.string().optional(), // Query is for google-search
+  num: z.number().optional(), // Number of results for google-search
+  dateRestrict: z.string().optional(), // Date restriction for google-search
   type: z.enum(["rss", "google-search"]).default("rss"),
   categories: z.array(z.string()).default([]),
 });
@@ -107,12 +109,6 @@ const sourceInputs: SourceInput[] = [
     type: "rss" as const,
   },
   {
-    name: "TV5MONDE Afrique",
-    url: "https://information.tv5monde.com/rsstaxo/23",
-    categories: ["Africa"],
-    type: "rss" as const,
-  },
-  {
     name: "Google Search - Developer Tools, CLI Enhancements, Agentic Coding, IDE Integrations",
     query: "(\"developer tools\" OR \"CLI tool\" OR \"coding assistant\" OR \"AI coding tool\" OR \"agentic coding\" OR \"terminal assistant\" OR \"developer workflow\" OR \"code generation tool\" OR \"AI mode\" OR \"IDE integration\") (\"new release\" OR \"announced\" OR \"preview\" OR \"beta\")",
     categories: ["tech"],
@@ -128,6 +124,38 @@ const sourceInputs: SourceInput[] = [
     name: "Google Search - Technical Books, PDFs, and In-Depth Publications",
     query: "(\"technical book pdf\" OR \"research pdf\" OR \"academic publication\" OR \"computational mathematics\" OR \"formal methods\" OR \"complexity theory\")",
     categories: ["tech"],
+    type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Africa - Diplomacy & Policy",
+    query: "(France OR French) (Africa OR African OR Mali OR Niger OR Burkina Faso OR Chad OR Senegal OR Gabon OR Congo OR Morocco OR Algeria OR Tunisia OR Ethiopia) (diplomacy OR summit OR cooperation OR agreement OR embassy OR ambassador OR sanctions OR \"foreign policy\" OR \"bilateral relations\")",
+    num: 10,
+    dateRestrict: "d7",
+    categories: ["africa"],
+    type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Africa - Military & Security",
+    query: "(France OR French) (Mali OR Niger OR Burkina Faso OR Chad OR Sahel OR Africa OR African) (\"military cooperation\" OR \"troop withdrawal\" OR \"security pact\" OR counterterrorism OR Wagner OR Barkhane OR junta OR coup)",
+    num: 10,
+    dateRestrict: "d7",
+    categories: ["africa"],
+    type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Africa - Economic, Energy & Logistics",
+    query: "(France OR French) (Africa OR African OR Niger OR Gabon OR Congo OR Senegal OR Morocco OR Algeria OR Tunisia OR Ethiopia) (uranium OR Orano OR TotalEnergies OR investment OR \"trade deal\" OR oil OR gas OR infrastructure OR \"development aid\" OR logistics OR \"supply chain\" OR \"air cargo\" OR \"air freight\" OR port OR harbor OR \"shipping line\" OR \"CMA CGM\")",
+    num: 10,
+    dateRestrict: "d7",
+    categories: ["africa"],
+    type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Africa - Aviation & Air Cargo",
+    query: "(\"Air France\" OR \"CMA CGM Air Cargo\" OR \"cargo airline\" OR \"air cargo\" OR \"air freight\" OR \"belly cargo\" OR \"freighter\" OR \"air route\" OR \"air service agreement\") (Africa OR African OR Mali OR Niger OR Burkina Faso OR Chad OR Senegal OR Gabon OR Congo OR Morocco OR Algeria OR Tunisia OR Ethiopia) (France OR French)",
+    num: 15,
+    dateRestrict: "d7",
+    categories: ["africa"],
     type: "google-search" as const,
   },
 ];

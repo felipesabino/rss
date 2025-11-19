@@ -85,7 +85,7 @@ export async function fetchSource(sourceConfig: typeof sources[0]): Promise<void
         return;
       }
 
-      const searchItems = await searchGoogleForQuery(sourceConfig.query);
+      const searchItems = await searchGoogleForQuery(sourceConfig.query, sourceConfig.num, sourceConfig.dateRestrict);
 
       // Map Google Search items to FeedItem structure
       feedItems = searchItems.map(item => ({

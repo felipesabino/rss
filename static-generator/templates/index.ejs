@@ -37,6 +37,27 @@
       <div class="category-help">Click to select multiple categories. Click "All" to reset.</div>
     </div>
 
+    <div class="report-section-wrapper">
+      <button id="reportToggle" class="report-toggle-btn hidden">News Brief 📰</button>
+      <div id="reportContainer" class="report-container hidden">
+        <% if (reports && reports.length> 0) { %>
+          <% reports.forEach(function(report) { %>
+            <div class="category-report hidden" data-category="<%= report.category %>">
+              <div class="report-content">
+                <%- report.htmlContent %>
+              </div>
+              <div class="report-meta">
+                Generated at <%= formatDate(new Date(report.generatedAt)) %>
+              </div>
+            </div>
+            <% }); %>
+              <% } %>
+                <div id="noReportMessage" class="category-report hidden">
+                  <p>No report available for this category.</p>
+                </div>
+      </div>
+    </div>
+
     <div class="feeds-container">
       <% feeds.forEach(function(feed) { %>
         <div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
@@ -323,6 +344,32 @@
       const categoryItems = document.querySelectorAll('.category-item');
       const feeds = document.querySelectorAll('.feed');
 
+      // Report functionality
+      const reportToggle = document.getElementById('reportToggle');
+      const reportContainer = document.getElementById('reportContainer');
+      const categoryReports = document.querySelectorAll('.category-report');
+
+      let showReport = localStorage.getItem('showReport') === 'true';
+
+      // Initial state for report button style
+      if (showReport) {
+        reportToggle.classList.add('active');
+        reportContainer.classList.remove('hidden');
+      }
+
+      reportToggle.addEventListener('click', function () {
+        showReport = !showReport;
+        this.classList.toggle('active', showReport);
+
+        if (showReport) {
+          reportContainer.classList.remove('hidden');
+        } else {
+          reportContainer.classList.add('hidden');
+        }
+
+        localStorage.setItem('showReport', showReport);
+      });
+
       // Get selected categories from localStorage or default to ['all']
       let selectedCategories = [];
       try {
@@ -366,8 +413,40 @@
           }
         });
 
+        // Update report visibility
+        updateReportVisibility(categories);
+
         // Save selection to localStorage
         localStorage.setItem('selectedCategories', JSON.stringify(categories));
+      }
+
+      function updateReportVisibility(categories) {
+        // Only show report button if exactly one category is selected and it's not 'all'
+        if (categories.length === 1 && categories[0] !== 'all') {
+          reportToggle.classList.remove('hidden');
+
+          // Sync container visibility with current state
+          if (showReport) {
+            reportContainer.classList.remove('hidden');
+          }
+
+          // Hide all reports first
+          categoryReports.forEach(report => report.classList.add('hidden'));
+
+          // Show the specific report for this category
+          const selectedCategory = categories[0];
+          const targetReport = document.querySelector(`.category-report[data-category="${selectedCategory}"]`);
+
+          if (targetReport) {
+            targetReport.classList.remove('hidden');
+          } else {
+            const noReportMsg = document.getElementById('noReportMessage');
+            if (noReportMsg) noReportMsg.classList.remove('hidden');
+          }
+        } else {
+          reportToggle.classList.add('hidden');
+          reportContainer.classList.add('hidden');
+        }
       }
 
       // Apply initial filter based on saved preference
