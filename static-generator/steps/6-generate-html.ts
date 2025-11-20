@@ -5,7 +5,7 @@ import { sources, getAllCategories } from '../../config/sources';
 import { loadAIProcessedContentCache, AIProcessedItem } from './4-process-with-openai';
 import { loadReportsCache } from './5-generate-reports';
 
-import { marked } from 'marked';
+
 
 // Path to the output directory
 const OUTPUT_DIR = path.join(process.cwd(), 'dist');
@@ -69,13 +69,9 @@ export async function generateStaticSite(): Promise<void> {
   // Get all categories
   const categories = getAllCategories();
 
-  // Process reports to include HTML content
-  const processedReports = await Promise.all(reportsCache.reports.map(async report => {
-    return {
-      ...report,
-      htmlContent: await marked.parse(report.report)
-    };
-  }));
+  // Process reports (no longer need to parse markdown as we have structured data)
+  // But we might want to format dates or other things if needed
+  const processedReports = reportsCache.reports;
 
   const html = ejs.render(template, {
     feeds: sources, // Pass sources as feeds to the template for backward compatibility

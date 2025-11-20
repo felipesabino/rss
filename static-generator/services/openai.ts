@@ -1,123 +1,94 @@
 import OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
+import { z } from "zod";
 import { CONTENT_FILTERING_THEMES } from "../../config/constants";
 
-export async function summarizeText(text: string): Promise<string> {
+// Schema for Item Analysis
+export const ItemAnalysisSchema = z.object({
+  summary: z.string().describe("A concise summary of the text, focusing on key points and main ideas."),
+  isPositive: z.boolean().describe("True if the content has a positive/uplifting sentiment, false otherwise."),
+});
+
+export type ItemAnalysis = z.infer<typeof ItemAnalysisSchema>;
+
+// Schema for Category Report
+export const ReportSchema = z.object({
+  header: z.string().describe("1–3 lines playful intro/byline about this specific category."),
+  mainStories: z.array(z.object({
+    sectionTag: z.string().describe("A relevant tag for the story (e.g., GEOPOLITICS, ECONOMY)."),
+    headline: z.string().describe("Bold, punchy headline."),
+    sourceName: z.string(),
+    sourceUrl: z.string(),
+    whatHappened: z.string().describe("Facts about what happened."),
+    whyItMatters: z.string().describe("Context and impact."),
+    shortTermImpact: z.string().describe("Short-term impact (weeks)."),
+    longTermImpact: z.string().describe("Long-term impact (6–24 months)."),
+    sentiment: z.enum(['Positive', 'Negative', 'Mixed']),
+    sentimentRationale: z.string().describe("1-line rationale for the sentiment."),
+  })).describe("Select the most impactful stories (1-3 stories)."),
+  whatElseIsGoingOn: z.array(z.object({
+    text: z.string().describe("1-2 sentences covering the story."),
+    sourceName: z.string(),
+    sourceUrl: z.string(),
+  })).describe("3-6 bullets covering other interesting stories."),
+  byTheNumbers: z.object({
+    number: z.string(),
+    commentary: z.string(),
+  }).optional().describe("One impactful number + witty commentary (if applicable data exists)."),
+  signOff: z.string().describe("Playful 1–2 lines sign-off."),
+});
+
+export type Report = z.infer<typeof ReportSchema>;
+
+export async function analyzeItem(text: string, title: string): Promise<ItemAnalysis> {
   // Check if OpenAI API key is available
   if (!process.env.OPENAI_API_KEY) {
-    console.warn("OPENAI_API_KEY is not set. Skipping summarization.");
-    return "Summary not available (API key not configured).";
+    console.warn("OPENAI_API_KEY is not set. Skipping analysis.");
+    return { summary: "Summary not available (API key not configured).", isPositive: false };
   }
 
-  // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
     baseURL: process.env.OPENAI_API_BASE_URL
   });
 
-
   const truncatedText = text.length > 50000 ? text.substring(0, 50000) : text;
+  const textToAnalyze = truncatedText.length > 200 ? truncatedText : `Title: ${title}\nContent: ${truncatedText}`;
 
   try {
-    // Use a default model if not specified in environment variables
-    const modelName = process.env.OPENAI_MODEL_NAME || "gpt-3.5-turbo";
+    const modelName = process.env.OPENAI_MODEL_NAME || "gpt-4o-2024-08-06"; // Use a model that supports structured outputs reliably
 
-    const response = await openai.chat.completions.create({
+    const response = await openai.beta.chat.completions.parse({
       model: modelName,
       messages: [
         {
           role: "system",
-          content: "You are a skilled content summarizer. Create a concise summary of the provided text. Focus on the key points and main ideas. Regardless of the text's language, provide the summary in English. Output ONLY the summary text. Do not start with 'Summary:', 'Here is a summary', or dashes. Do not use conversational fillers."
+          content: `You are a skilled content analyst. 
+          1. Summarize the provided text concisely in English.
+          2. Analyze the sentiment. Return 'isPositive' as true ONLY if the content is genuinely positive/uplifting. 
+          Automatically flag as negative (isPositive: false) if the content is related to: ${CONTENT_FILTERING_THEMES.join(", ")}.`
         },
         {
           role: "user",
-          content: truncatedText,
+          content: textToAnalyze,
         },
       ],
+      response_format: zodResponseFormat(ItemAnalysisSchema, "item_analysis"),
     }, {
-      // 15 minutes
-      timeout: 15 * 60 * 1000,
+      timeout: 15 * 60 * 1000, // 15 minutes
       maxRetries: 3
     });
 
-    let summary = response.choices[0]?.message?.content || "Summary not available.";
+    const result = response.choices[0]?.message?.parsed;
 
-    // Clean up the summary
-    summary = summary.trim();
-
-    // Remove "Summary:" or "Here is a summary:" prefixes (case insensitive)
-    summary = summary.replace(/^(summary|here is a summary|this text is about|the text describes)[:\s-]*/i, "");
-
-    // Remove leading dashes or bullets
-    summary = summary.replace(/^[\s\-\*]+/, "");
-
-    // Remove "what is this" type prefixes if they appear (though less likely with the new prompt)
-    summary = summary.replace(/^what is this[:\s]*/i, "");
-
-    return summary.trim();
-  } catch (error) {
-    console.error("Error generating summary:", error);
-    return "Error generating summary.";
-  }
-}
-
-
-export async function analyzeSentiment(text: string): Promise<boolean> {
-  // Check if OpenAI API key is available
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn("OPENAI_API_KEY is not set. Skipping sentiment analysis.");
-    return false; // Default to not positive when API key is missing
-  }
-
-  // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_API_BASE_URL
-  });
-
-  const truncatedText = text.length > 50000 ? text.substring(0, 50000) : text;
-
-  try {
-    console.log(`Analyzing sentiment for text (length: ${truncatedText.length})`);
-
-    // Use the specified model or fall back to the summary model or a default if not available
-    const modelName = process.env.OPENAI_SENTIMENT_MODEL_NAME || process.env.OPENAI_MODEL_NAME || "gpt-3.5-turbo";
-
-    const response = await openai.chat.completions.create({
-      model: modelName,
-      messages: [
-        {
-          role: "system",
-          content: `You are a sentiment analyzer. Determine if the provided content has a positive/uplifting sentiment. Respond ONLY with 'true' for positive/uplifting content or 'false' for negative/neutral content. Do not include any explanation or additional text in your response. Automatically flag as negative if the content is related to any of the following themes: ${CONTENT_FILTERING_THEMES.join(", ")}.`
-        },
-        {
-          role: "user",
-          content: truncatedText,
-        },
-      ],
-    }, {
-      // 5 minutes
-      timeout: 5 * 60 * 1000,
-      maxRetries: 2
-    });
-
-    const result = response.choices[0]?.message?.content?.trim().toLowerCase();
-    console.log(`Sentiment analysis result: "${result}"`);
-
-    // Handle various possible responses
-    if (result === 'true' || result === '"true"') {
-      return true;
-    } else if (result === 'false' || result === '"false"') {
-      return false;
-    } else if (result && (result.includes('true') || result.includes('positive') || result.includes('uplifting'))) {
-      console.log(`Interpreting as positive: "${result}"`);
-      return true;
-    } else {
-      console.log(`Interpreting as not positive: "${result}"`);
-      return false;
+    if (!result) {
+      throw new Error("Failed to parse structured output");
     }
+
+    return result;
   } catch (error) {
-    console.error("Error analyzing sentiment:", error);
-    return false; // Default to not positive if there's an error
+    console.error("Error analyzing item:", error);
+    return { summary: "Error generating summary.", isPositive: false };
   }
 }
 
@@ -127,14 +98,14 @@ export interface ReportItem {
   url: string;
   published: Date;
   sourceName: string;
-  score?: number; // Optional score if we want to pass it
+  score?: number;
 }
 
-export async function generateCategoryReport(category: string, items: ReportItem[], customInstructions?: string): Promise<string> {
+export async function generateCategoryReport(category: string, items: ReportItem[], customInstructions?: string): Promise<Report | null> {
   // Check if OpenAI API key is available
   if (!process.env.OPENAI_API_KEY) {
     console.warn("OPENAI_API_KEY is not set. Skipping report generation.");
-    return "";
+    return null;
   }
 
   const openai = new OpenAI({
@@ -142,11 +113,7 @@ export async function generateCategoryReport(category: string, items: ReportItem
     baseURL: process.env.OPENAI_API_BASE_URL
   });
 
-  // Prepare the items for the prompt
-  // We limit the number of items to avoid token limits, prioritizing those with summaries or recent ones
-  // For now, let's take top 20 items
-
-  // TODO: Define a strategy to score, rank and select the best items
+  // Limit items
   const topItems = items.slice(0, 20);
 
   const itemsText = topItems.map((item, index) => {
@@ -160,38 +127,23 @@ ${summaryText}
 ---`;
   }).join("\n");
 
-  // Static system prompt - heavily cached
   const systemPrompt = `You are a helpful assistant that generates newsletter-style reports.
 You are writing a Morning Brew–style daily newsletter with a conversational, witty, high-density tone.
-Style: short sentences/paragraphs, light humor, crisp headers, Markdown output.
+Style: short sentences/paragraphs, light humor, crisp headers.
 
-Structure:
-- HEADER: 1–3 lines playful intro/byline about this specific category.
-- MAIN STORIES: Select the most impactful stories (1-3 stories). For each:
-  - SECTION TAG (e.g., GEOPOLITICS, SECURITY, ECONOMY, SUPPLY CHAIN, AVIATION, ENERGY, ETC - make sure to adapt to and make it relevant to the category and content of the story).
-  - Bold, punchy headline
-  - Source name with a markdown link to the source URL
-  - Subsections:
-    - What Happened (facts).
-    - Why It Matters (context and impact).
-    - Short-Term Impact (weeks).
-    - Long-Term Impact (6–24 months).
-    - Sentiment: Positive/Negative/Mixed with 1-line rationale.
-- WHAT ELSE IS GOING ON: 3-6 bullets, 1-2 sentences each, covering other interesting stories. Include the source name with a link to the source URL on each item.
-- BY THE NUMBERS: one impactful number + witty commentary (if applicable data exists, otherwise skip).
+Structure requirements are defined in the output schema.
+- MAIN STORIES: Select the most impactful stories (1-3 stories).
+- WHAT ELSE IS GOING ON: 3-6 bullets covering other interesting stories.
+- BY THE NUMBERS: one impactful number + witty commentary (if applicable data exists).
 - SIGN-OFF: playful 1–2 lines.
 
 Rules:
 - Prioritize higher signal stories.
 - If a story has no summary, judge importance by title.
-- Keep Markdown clean and readable.
 - Do not use the terms "Morning Brew" or "Brew".
 - Do not fabricate images or data.
 - If there are not enough interesting stories, keep it shorter.`;
 
-
-
-  // Dynamic user prompt - variable content at the end
   let userPrompt = `Category: "${category}"`;
 
   if (customInstructions) {
@@ -203,9 +155,9 @@ Rules:
   try {
     console.log(`Generating report for category: ${category} with ${topItems.length} items...`);
 
-    const modelName = process.env.OPENAI_REPORT_MODEL_NAME || process.env.OPENAI_MODEL_NAME || "gpt-4o";
+    const modelName = process.env.OPENAI_REPORT_MODEL_NAME || process.env.OPENAI_MODEL_NAME || "gpt-4o-2024-08-06";
 
-    const response = await openai.chat.completions.create({
+    const response = await openai.beta.chat.completions.parse({
       model: modelName,
       messages: [
         {
@@ -217,13 +169,15 @@ Rules:
           content: userPrompt,
         },
       ],
+      response_format: zodResponseFormat(ReportSchema, "category_report"),
     }, {
       timeout: 5 * 60 * 1000, // 5 minutes
     });
 
-    return response.choices[0]?.message?.content || "";
+    const result = response.choices[0]?.message?.parsed;
+    return result || null;
   } catch (error) {
     console.error(`Error generating report for category ${category}:`, error);
-    return "";
+    return null;
   }
 }

@@ -1,4 +1,4 @@
-import { summarizeText, analyzeSentiment } from '../services/openai';
+import { analyzeItem } from '../services/openai';
 import fs from 'fs/promises';
 import path from 'path';
 import { loadProcessedContentCache, ProcessedContentItem } from './3-process-content';
@@ -82,46 +82,30 @@ export async function processWithOpenAI(): Promise<void> {
       } else {
         const content = item.content || '';
 
-        // Only summarize if content is substantial
-        const shouldSummarize = content.length > 500;
+        // Only analyze if content is substantial or we want to analyze title
+        // We'll analyze if content > 200 chars OR if we just want to rely on title for short content
+        // But the original code had a check for summary (content > 500)
 
-        if (shouldSummarize) {
+        const shouldAnalyze = content.length > 200 || item.title.length > 20;
+
+        if (shouldAnalyze) {
           try {
-            console.log(`Starting summarization for item: "${item.title.substring(0, 50)}..."`);
-            summary = await summarizeText(content);
-            hasSummary = true;
-            console.log(`Summarization completed for "${item.title}"`);
+            console.log(`Starting analysis for item: "${item.title.substring(0, 50)}..."`);
+            const analysis = await analyzeItem(content || item.title, item.title);
 
-            // Analyze sentiment
-            try {
-              // Use content for sentiment analysis, or fallback to title if content is minimal
-              const textForSentiment = content.length > 200 ? content : item.title;
-              console.log(`Starting sentiment analysis for item: "${item.title.substring(0, 50)}..."`);
-              isPositive = await analyzeSentiment(textForSentiment);
-              console.log(`Sentiment analysis completed for "${item.title}": ${isPositive ? 'Positive ✅' : 'Negative/Neutral ❌'}`);
-            } catch (err: any) {
-              console.error(`Failed to analyze sentiment: ${err.message}`);
-            }
+            summary = analysis.summary;
+            isPositive = analysis.isPositive;
+            hasSummary = true; // analyzeItem always returns a summary string (even if error message)
+
+            console.log(`Analysis completed for "${item.title}": Sentiment: ${isPositive ? 'Positive ✅' : 'Negative/Neutral ❌'}`);
           } catch (err: any) {
-            console.error(`Failed to summarize item: ${err.message}`);
-
-            // Try to analyze sentiment even if summarization fails
-            try {
-              const textForSentiment = content.length > 200 ? content : item.title;
-              isPositive = await analyzeSentiment(textForSentiment);
-            } catch (sentErr: any) {
-              console.error(`Failed to analyze sentiment: ${sentErr.message}`);
-            }
+            console.error(`Failed to analyze item: ${err.message}`);
+            // Default values on error
+            isPositive = false;
           }
         } else {
-          // For short content, still try to analyze sentiment
-          try {
-            // For short content, prefer the title for sentiment analysis
-            const textForSentiment = item.title;
-            isPositive = await analyzeSentiment(textForSentiment);
-          } catch (err: any) {
-            console.error(`Failed to analyze sentiment: ${err.message}`);
-          }
+          // Very short content, maybe just skip or default
+          isPositive = false;
         }
       }
 

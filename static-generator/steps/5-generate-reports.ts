@@ -1,14 +1,14 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { loadAIProcessedContentCache, AIProcessedItem } from './4-process-with-openai';
-import { generateCategoryReport, ReportItem } from '../services/openai';
+import { generateCategoryReport, ReportItem, Report } from '../services/openai';
 import { sources } from '../../config/sources';
 import { categoryPrompts } from '../../config/category-prompts';
 
 // Define the structure for category reports
 export interface CategoryReport {
     category: string;
-    report: string;
+    report: Report;
     generatedAt: number;
 }
 
@@ -86,24 +86,37 @@ export async function generateReports(): Promise<void> {
 
     // Generate report for each category
     for (const category of categories) {
-        const items = itemsByCategory.get(category) || [];
+        let items = itemsByCategory.get(category) || [];
 
-        // Sort items by date (newest first) - or by score if we had one
-        // The prompt says "order by signal.score desc", but we don't have a score yet.
-        // We'll use date for now.
-        items.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
+        // Get custom instructions for this category if available
+        const customInstructions = categoryPrompts[category.toLowerCase()];
+
+        // Strategy to score, rank and select the best items
+        // Only apply this strategy if the category has a specific prompt
+        if (customInstructions) {
+            console.log(`Applying diversity clustering and ranking for category "${category}"...`);
+            items = selectDiverseBestItems(items);
+        } else {
+            // Default behavior: Sort items by date (newest first)
+            items.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
+        }
 
         console.log(`Generating report for category "${category}" with ${items.length} items...`);
 
         // Convert to ReportItem format
-        const reportItems: ReportItem[] = items.map(item => {
+        const reportItems: ReportItem[] = items.map((item, index) => {
             const source = sources.find(s => s.id === item.feedId);
+            // Calculate a simple score based on recency and order (since they are already sorted/ranked)
+            // We can use the index to represent the rank score (lower index = higher score)
+            const score = 100 - index;
+
             return {
                 title: item.title,
                 summary: item.summary,
                 url: item.url,
                 published: new Date(item.published),
-                sourceName: source?.name || 'Unknown Source'
+                sourceName: source?.name || 'Unknown Source',
+                score: score > 0 ? score : 0
             };
         });
 
@@ -119,16 +132,13 @@ export async function generateReports(): Promise<void> {
             continue;
         }
 
-        // Get custom instructions for this category if available
-        const customInstructions = categoryPrompts[category.toLowerCase()];
-
         // Generate new report
-        const reportContent = await generateCategoryReport(category, reportItems, customInstructions);
+        const reportData = await generateCategoryReport(category, reportItems, customInstructions);
 
-        if (reportContent) {
+        if (reportData) {
             newReports.push({
                 category,
-                report: reportContent,
+                report: reportData,
                 generatedAt: Date.now()
             });
             console.log(`Generated new report for "${category}"`);
@@ -192,4 +202,41 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 // Helper function to get file URL path
 function fileURLToPath(url: string): string {
     return new URL(url).pathname;
+}
+
+/**
+ * Selects the best items ensuring diversity across sources.
+ * Strategy:
+ * 1. Group items by source.
+ * 2. Select top K items from each source (sorted by recency).
+ * 3. Combine and sort the final list by recency.
+ * This ensures that we don't just get the top 20 items from a single high-volume source.
+ */
+function selectDiverseBestItems(items: AIProcessedItem[], topKPerSource: number = 3): AIProcessedItem[] {
+    // Group by source
+    const itemsBySource = new Map<number, AIProcessedItem[]>();
+    for (const item of items) {
+        if (!itemsBySource.has(item.feedId)) {
+            itemsBySource.set(item.feedId, []);
+        }
+        itemsBySource.get(item.feedId)?.push(item);
+    }
+
+    const selectedItems: AIProcessedItem[] = [];
+
+    // Select top K from each source
+    for (const [sourceId, sourceItems] of Array.from(itemsBySource)) {
+        // Sort by date within source (newest first)
+        sourceItems.sort((a: AIProcessedItem, b: AIProcessedItem) => new Date(b.published).getTime() - new Date(a.published).getTime());
+
+        // Take top K
+        // We prioritize items with summaries if available, but for now just recency
+        selectedItems.push(...sourceItems.slice(0, topKPerSource));
+    }
+
+    // Sort the combined list by date (newest first)
+    // This effectively ranks them by "Recency" but the pool is now diverse.
+    selectedItems.sort((a: AIProcessedItem, b: AIProcessedItem) => new Date(b.published).getTime() - new Date(a.published).getTime());
+
+    return selectedItems;
 }
