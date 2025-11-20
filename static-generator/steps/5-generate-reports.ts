@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { loadAIProcessedContentCache, AIProcessedItem } from './4-process-with-openai';
-import { generateCategoryReport, ReportItem, Report } from '../services/openai';
+import { generateCategoryReport, ReportItem, Report, REPORT_ITEM_LIMIT } from '../services/openai';
 import {
     cacheScoringResult,
     hasRankingScore,
@@ -16,6 +16,7 @@ export interface CategoryReport {
     category: string;
     report: Report;
     generatedAt: number;
+    usedItemIds: number[];
 }
 
 // Define the structure for the reports cache
@@ -142,7 +143,8 @@ export async function generateReports(): Promise<void> {
                 url: item.url,
                 published: new Date(item.published),
                 sourceName: source?.name || 'Unknown Source',
-                score: score > 0 ? score : 0
+                score: score > 0 ? score : 0,
+                sourceItemId: item.id
             };
         });
 
@@ -154,25 +156,37 @@ export async function generateReports(): Promise<void> {
         // Unless we force regeneration (could add a flag for that)
         if (existingReport && (Date.now() - existingReport.generatedAt < ONE_HOUR)) {
             console.log(`Using cached report for "${category}" (generated ${new Date(existingReport.generatedAt).toLocaleTimeString()})`);
-            newReports.push(existingReport);
+            newReports.push({
+                ...existingReport,
+                usedItemIds: existingReport.usedItemIds || []
+            });
             continue;
         }
 
         // Generate new report
-        const reportData = await generateCategoryReport(category, reportItems, customInstructions);
+        const itemsForReport = reportItems.slice(0, REPORT_ITEM_LIMIT);
+        const usedItemIds = itemsForReport
+            .map(item => item.sourceItemId)
+            .filter((id): id is number => typeof id === 'number');
+
+        const reportData = await generateCategoryReport(category, itemsForReport, customInstructions);
 
         if (reportData) {
             newReports.push({
                 category,
                 report: reportData,
-                generatedAt: Date.now()
+                generatedAt: Date.now(),
+                usedItemIds
             });
             console.log(`Generated new report for "${category}"`);
         } else {
             console.warn(`Failed to generate report for "${category}"`);
             // Keep old report if available
             if (existingReport) {
-                newReports.push(existingReport);
+                newReports.push({
+                    ...existingReport,
+                    usedItemIds: existingReport.usedItemIds || []
+                });
             }
         }
     }

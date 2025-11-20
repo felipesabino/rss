@@ -92,6 +92,8 @@ export async function analyzeItem(text: string, title: string): Promise<ItemAnal
   }
 }
 
+export const REPORT_ITEM_LIMIT = 20;
+
 export interface ReportItem {
   title: string;
   summary?: string;
@@ -99,6 +101,7 @@ export interface ReportItem {
   published: Date;
   sourceName: string;
   score?: number;
+  sourceItemId?: number;
 }
 
 export async function generateCategoryReport(category: string, items: ReportItem[], customInstructions?: string): Promise<Report | null> {
@@ -114,7 +117,7 @@ export async function generateCategoryReport(category: string, items: ReportItem
   });
 
   // Limit items
-  const topItems = items.slice(0, 20);
+  const topItems = items.slice(0, REPORT_ITEM_LIMIT);
 
   const itemsText = topItems.map((item, index) => {
     const summaryText = item.summary ? `Summary: ${item.summary}` : "No summary available.";

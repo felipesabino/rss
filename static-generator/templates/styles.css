@@ -193,6 +193,16 @@ body {
   text-decoration: underline;
 }
 
+.feed-item-report-star {
+  display: none;
+  margin-right: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.feed-item.used-in-active-report .feed-item-report-star {
+  display: inline-flex;
+}
+
 .feed-item-date {
   font-size: 0.75rem;
   color: var(--muted-foreground);

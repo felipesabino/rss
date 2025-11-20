@@ -73,12 +73,27 @@ export async function generateStaticSite(): Promise<void> {
   // But we might want to format dates or other things if needed
   const processedReports = reportsCache.reports;
 
+  const reportUsageMap: Record<number, string[]> = {};
+  for (const report of processedReports) {
+    const usedIds = report.usedItemIds || [];
+    for (const itemId of usedIds) {
+      if (!reportUsageMap[itemId]) {
+        reportUsageMap[itemId] = [];
+      }
+      // Avoid duplicate category entries
+      if (!reportUsageMap[itemId].includes(report.category)) {
+        reportUsageMap[itemId].push(report.category);
+      }
+    }
+  }
+
   const html = ejs.render(template, {
     feeds: sources, // Pass sources as feeds to the template for backward compatibility
     itemsByFeed,
     feedMetadata: aiProcessedCache.feedMetadata,
     categories,
     reports: processedReports,
+    reportUsageMap,
     formatDate: (date: Date) => {
       return date.toLocaleDateString(['fr-FR'], { hour: '2-digit', minute: '2-digit' });
     }

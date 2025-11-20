@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import OpenAI from 'openai';
-import { analyzeItem, generateCategoryReport } from '../openai';
+import { analyzeItem, generateCategoryReport, REPORT_ITEM_LIMIT } from '../openai';
 import type { Report, ReportItem } from '../openai';
 
 const { openAIMocks } = vi.hoisted(() => ({
@@ -216,7 +216,7 @@ describe('OpenAI service', () => {
       expect(userMessage).toContain('Category: "Tech"');
       expect(userMessage).toContain('SPECIFIC INSTRUCTIONS FOR CATEGORY "Tech"');
       const itemOccurrences = userMessage.match(/Item \d+:/g) || [];
-      expect(itemOccurrences.length).toBe(20); // trimmed to top 20 items
+      expect(itemOccurrences.length).toBe(REPORT_ITEM_LIMIT); // trimmed to top N items
     });
 
     it('returns null when API key is missing', async () => {

@@ -38,7 +38,7 @@
     </div>
 
     <div class="report-section-wrapper">
-      <button id="reportToggle" class="report-toggle-btn hidden">News Brief 📰</button>
+      <div id="reportToggleContainer" class="report-toggle-container hidden"></div>
       <div id="reportContainer" class="report-container hidden">
         <% if (reports && reports.length> 0) { %>
           <% reports.forEach(function(report) { %>
@@ -156,11 +156,16 @@
           </h3>
           <div class="feed-items">
             <% if (itemsByFeed[feed.id] && itemsByFeed[feed.id].length) { %>
-              <% itemsByFeed[feed.id].forEach(function(item) { %>
-                <div class="feed-item" data-positive="<%= item.isPositive === true ? 'true' : 'false' %>">
+              <% itemsByFeed[feed.id].forEach(function(item) { 
+                   const usageCategories = (reportUsageMap && reportUsageMap[item.id]) || [];
+              %>
+                <div class="feed-item" data-positive="<%= item.isPositive === true ? 'true' : 'false' %>" data-report-categories="<%= usageCategories.map(cat => encodeURIComponent(cat)).join(' ') %>">
                   <% /* Debug info: */ %>
                     <!-- Item ID: <%= item.id %>, isPositive: <%= item.isPositive %> -->
                     <div class="feed-item-header">
+                      <% if (usageCategories.length) { %>
+                        <span class="feed-item-report-star" title="Used in this category's News Brief">⭐️</span>
+                      <% } %>
                       <a href="<%= item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-link">
                         <%= item.title %>
                       </a>
@@ -244,10 +249,10 @@
                                             <% } %>
                                               <% if (item.isPositive===true) { %>
                                                 <span class="feed-item-sentiment positive"
-                                                  title="Positive content">😊</span>
+                                                  title="Positive content">💯</span>
                                                 <% } else if (item.isPositive===false) { %>
                                                   <span class="feed-item-sentiment negative"
-                                                    title="Neutral or negative content">😐</span>
+                                                    title="Neutral or negative content">❗️</span>
                                                   <% } else { %>
                                                     <span class="feed-item-sentiment unknown"
                                                       title="Sentiment not analyzed">❓</span>
@@ -424,30 +429,16 @@
       const feeds = document.querySelectorAll('.feed');
 
       // Report functionality
-      const reportToggle = document.getElementById('reportToggle');
+      const reportToggleContainer = document.getElementById('reportToggleContainer');
       const reportContainer = document.getElementById('reportContainer');
       const categoryReports = document.querySelectorAll('.category-report');
+      const noReportMessage = document.getElementById('noReportMessage');
 
       let showReport = localStorage.getItem('showReport') === 'true';
-
-      // Initial state for report button style
-      if (showReport) {
-        reportToggle.classList.add('active');
-        reportContainer.classList.remove('hidden');
+      let activeReportCategory = localStorage.getItem('activeReportCategory');
+      if (activeReportCategory === 'null' || activeReportCategory === 'undefined') {
+        activeReportCategory = null;
       }
-
-      reportToggle.addEventListener('click', function () {
-        showReport = !showReport;
-        this.classList.toggle('active', showReport);
-
-        if (showReport) {
-          reportContainer.classList.remove('hidden');
-        } else {
-          reportContainer.classList.add('hidden');
-        }
-
-        localStorage.setItem('showReport', showReport);
-      });
 
       // Get selected categories from localStorage or default to ['all']
       let selectedCategories = [];
@@ -456,6 +447,105 @@
         selectedCategories = savedCategories ? JSON.parse(savedCategories) : ['all'];
       } catch (e) {
         selectedCategories = ['all'];
+      }
+
+      function setActiveReportCategory(category) {
+        activeReportCategory = category;
+        if (category) {
+          localStorage.setItem('activeReportCategory', category);
+        } else {
+          localStorage.removeItem('activeReportCategory');
+        }
+      }
+
+      function formatCategoryLabel(category) {
+        if (!category) {
+          return '';
+        }
+        return category.charAt(0).toUpperCase() + category.slice(1);
+      }
+
+      function handleReportButtonClick(category) {
+        if (activeReportCategory === category && showReport) {
+          showReport = false;
+        } else {
+          showReport = true;
+          setActiveReportCategory(category);
+        }
+
+        localStorage.setItem('showReport', showReport);
+        updateReportDisplay();
+      }
+
+      function renderReportButtons(categories) {
+        reportToggleContainer.innerHTML = '';
+
+        const hasSpecificCategories = Array.isArray(categories) && !categories.includes('all');
+        if (!hasSpecificCategories) {
+          reportToggleContainer.classList.add('hidden');
+          reportContainer.classList.add('hidden');
+          setActiveReportCategory(null);
+          updateReportIndicators(null);
+          return;
+        }
+
+        const orderedSelected = Array.from(categoryItems)
+          .map(item => item.getAttribute('data-category'))
+          .filter(cat => cat && cat !== 'all' && categories.includes(cat));
+
+        if (!orderedSelected.length) {
+          reportToggleContainer.classList.add('hidden');
+          reportContainer.classList.add('hidden');
+          setActiveReportCategory(null);
+          updateReportIndicators(null);
+          return;
+        }
+
+        if (!orderedSelected.includes(activeReportCategory)) {
+          setActiveReportCategory(orderedSelected[0]);
+        }
+
+        orderedSelected.forEach(cat => {
+          const button = document.createElement('button');
+          button.className = 'report-toggle-btn';
+          button.setAttribute('data-category', cat);
+          button.textContent = `Show ${formatCategoryLabel(cat)} Report 📰`;
+          button.addEventListener('click', () => handleReportButtonClick(cat));
+          reportToggleContainer.appendChild(button);
+        });
+
+        reportToggleContainer.classList.remove('hidden');
+        updateReportDisplay();
+      }
+
+      function updateReportDisplay() {
+        const buttons = reportToggleContainer.querySelectorAll('.report-toggle-btn');
+        buttons.forEach(button => {
+          const buttonCategory = button.getAttribute('data-category');
+          button.classList.toggle('active', showReport && buttonCategory === activeReportCategory);
+        });
+
+        categoryReports.forEach(report => report.classList.add('hidden'));
+        if (noReportMessage) {
+          noReportMessage.classList.add('hidden');
+        }
+
+        if (showReport && activeReportCategory) {
+          const targetReport = document.querySelector(`.category-report[data-category="${activeReportCategory}"]`);
+          if (targetReport) {
+            targetReport.classList.remove('hidden');
+            reportContainer.classList.remove('hidden');
+          } else if (noReportMessage) {
+            noReportMessage.classList.remove('hidden');
+            reportContainer.classList.remove('hidden');
+          } else {
+            reportContainer.classList.add('hidden');
+          }
+        } else {
+          reportContainer.classList.add('hidden');
+        }
+
+        updateReportIndicators(showReport ? activeReportCategory : null);
       }
 
       // Function to filter feeds by categories
@@ -500,32 +590,40 @@
       }
 
       function updateReportVisibility(categories) {
-        // Only show report button if exactly one category is selected and it's not 'all'
-        if (categories.length === 1 && categories[0] !== 'all') {
-          reportToggle.classList.remove('hidden');
+        renderReportButtons(categories);
+      }
 
-          // Sync container visibility with current state
-          if (showReport) {
-            reportContainer.classList.remove('hidden');
-          }
+      function updateReportIndicators(activeCategory) {
+        const feedItems = document.querySelectorAll('.feed-item');
+        feedItems.forEach(item => item.classList.remove('used-in-active-report'));
 
-          // Hide all reports first
-          categoryReports.forEach(report => report.classList.add('hidden'));
-
-          // Show the specific report for this category
-          const selectedCategory = categories[0];
-          const targetReport = document.querySelector(`.category-report[data-category="${selectedCategory}"]`);
-
-          if (targetReport) {
-            targetReport.classList.remove('hidden');
-          } else {
-            const noReportMsg = document.getElementById('noReportMessage');
-            if (noReportMsg) noReportMsg.classList.remove('hidden');
-          }
-        } else {
-          reportToggle.classList.add('hidden');
-          reportContainer.classList.add('hidden');
+        if (!showReport || !activeCategory) {
+          return;
         }
+
+        const normalizedCategory = activeCategory.toLowerCase();
+
+        feedItems.forEach(item => {
+          const attr = item.getAttribute('data-report-categories') || '';
+          if (!attr) {
+            return;
+          }
+
+          const categories = attr
+            .split(' ')
+            .filter(Boolean)
+            .map(encoded => {
+              try {
+                return decodeURIComponent(encoded).toLowerCase();
+              } catch (e) {
+                return encoded.toLowerCase();
+              }
+            });
+
+          if (categories.includes(normalizedCategory)) {
+            item.classList.add('used-in-active-report');
+          }
+        });
       }
 
       // Apply initial filter based on saved preference
