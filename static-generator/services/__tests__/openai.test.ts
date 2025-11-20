@@ -1,198 +1,229 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { summarizeText, analyzeSentiment } from '../openai';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import OpenAI from 'openai';
+import { analyzeItem, generateCategoryReport } from '../openai';
+import type { Report, ReportItem } from '../openai';
 
-// Mock OpenAI
-vi.mock('openai', () => {
+const { openAIMocks } = vi.hoisted(() => ({
+  openAIMocks: {
+    parse: vi.fn(),
+    constructor: vi.fn()
+  }
+}));
+
+vi.mock('openai', () => ({
+  default: openAIMocks.constructor
+}));
+
+function buildMockReport(): Report {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: vi.fn()
-        }
+    header: 'Morning intel',
+    mainStories: [
+      {
+        sectionTag: 'TECH',
+        headline: 'Robotics boom',
+        sourceName: 'Example',
+        sourceUrl: 'https://example.com/story',
+        whatHappened: 'Robotics headline',
+        whyItMatters: 'Because automation',
+        shortTermImpact: 'next quarter',
+        longTermImpact: 'next year',
+        sentiment: 'Positive',
+        sentimentRationale: 'optimistic momentum'
       }
-    }))
+    ],
+    whatElseIsGoingOn: [
+      {
+        text: 'Another story',
+        sourceName: 'Example',
+        sourceUrl: 'https://example.com'
+      }
+    ],
+    byTheNumbers: {
+      number: '42%',
+      commentary: 'growth'
+    },
+    signOff: 'See you tomorrow'
   };
-});
+}
 
-describe('openai', () => {
-  let mockOpenAI: any;
-  let mockCreate: any;
-  
+describe('OpenAI service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Set up environment variables
+    openAIMocks.parse.mockReset();
+    openAIMocks.constructor.mockReset();
+    openAIMocks.constructor.mockImplementation(() => ({
+      beta: {
+        chat: {
+          completions: {
+            parse: openAIMocks.parse
+          }
+        }
+      }
+    }));
+
     process.env.OPENAI_API_KEY = 'test-key';
     process.env.OPENAI_API_BASE_URL = 'https://api.test';
     process.env.OPENAI_MODEL_NAME = 'test-model';
-    
-    // Set up the mock
-    mockCreate = vi.fn();
-    mockOpenAI = {
-      chat: {
-        completions: {
-          create: mockCreate
-        }
+    process.env.OPENAI_REPORT_MODEL_NAME = 'report-model';
+  });
+
+  afterEach(() => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_BASE_URL;
+    delete process.env.OPENAI_MODEL_NAME;
+    delete process.env.OPENAI_REPORT_MODEL_NAME;
+  });
+
+  describe('analyzeItem', () => {
+    it('sends structured output request and returns parsed analysis', async () => {
+      openAIMocks.parse.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              parsed: { summary: 'Concise summary', isPositive: true }
+            }
+          }
+        ]
+      });
+
+      const response = await analyzeItem('a'.repeat(500), 'Busy Day');
+
+      expect(OpenAI).toHaveBeenCalledWith({
+        apiKey: 'test-key',
+        baseURL: 'https://api.test'
+      });
+
+      expect(openAIMocks.parse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'test-model',
+          messages: expect.arrayContaining([
+            expect.objectContaining({ role: 'system' }),
+            expect.objectContaining({ role: 'user' })
+          ]),
+          response_format: expect.any(Object)
+        }),
+        { timeout: 15 * 60 * 1000, maxRetries: 3 }
+      );
+      expect(response).toEqual({ summary: 'Concise summary', isPositive: true });
+    });
+
+    it('falls back to title context for very short text', async () => {
+      openAIMocks.parse.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              parsed: { summary: 'ok', isPositive: false }
+            }
+          }
+        ]
+      });
+
+      await analyzeItem('short', 'Breaking News');
+      const userMessage = openAIMocks.parse.mock.calls[0][0].messages[1].content as string;
+      expect(userMessage).toContain('Title: Breaking News');
+      expect(userMessage).toContain('short');
+    });
+
+    it('truncates extremely long content to 50k characters', async () => {
+      openAIMocks.parse.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              parsed: { summary: 'ok', isPositive: false }
+            }
+          }
+        ]
+      });
+
+      const long = 'a'.repeat(60000);
+      await analyzeItem(long, 'Title');
+      const content = openAIMocks.parse.mock.calls[0][0].messages[1].content as string;
+      expect(content.length).toBe(50000);
+    });
+
+    it('returns default response when API key is missing', async () => {
+      delete process.env.OPENAI_API_KEY;
+      const result = await analyzeItem('content', 'Title');
+      expect(result).toEqual({
+        summary: 'Summary not available (API key not configured).',
+        isPositive: false
+      });
+      expect(openAIMocks.parse).not.toHaveBeenCalled();
+    });
+
+    it('returns fallback summary on API error', async () => {
+      openAIMocks.parse.mockRejectedValueOnce(new Error('boom'));
+      const result = await analyzeItem('content'.repeat(100), 'Title');
+      expect(result).toEqual({
+        summary: 'Error generating summary.',
+        isPositive: false
+      });
+    });
+  });
+
+  describe('generateCategoryReport', () => {
+    const baseItems: ReportItem[] = [
+      {
+        title: 'Story 1',
+        summary: 'Summary 1',
+        url: 'https://example.com/1',
+        published: new Date('2024-01-01T00:00:00.000Z'),
+        sourceName: 'Example Source',
+        score: 50
+      },
+      {
+        title: 'Story 2',
+        summary: 'Summary 2',
+        url: 'https://example.com/2',
+        published: new Date('2024-01-02T00:00:00.000Z'),
+        sourceName: 'Example Source',
+        score: 40
       }
-    };
-    
-    (OpenAI as any).mockImplementation(() => mockOpenAI);
-  });
+    ];
 
-  describe('summarizeText', () => {
-    it('should call OpenAI API with correct parameters', async () => {
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'Test summary' } }]
-      });
-      
-      const result = await summarizeText('Test content');
-      
-      expect(OpenAI).toHaveBeenCalledWith({
-        apiKey: 'test-key',
-        baseURL: 'https://api.test'
-      });
-      
-      expect(mockCreate).toHaveBeenCalledWith({
-        model: 'test-model',
-        messages: [
+    it('generates a report using at most 20 stories and custom instructions', async () => {
+      openAIMocks.parse.mockResolvedValueOnce({
+        choices: [
           {
-            role: 'system',
-            content: expect.stringContaining('summarizer')
-          },
-          {
-            role: 'user',
-            content: 'Test content'
+            message: {
+              parsed: buildMockReport()
+            }
           }
         ]
-      }, expect.any(Object));
-      
-      expect(result).toBe('Test summary');
-    });
-    
-    it('should truncate long text', async () => {
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'Test summary' } }]
       });
-      
-      const longText = 'a'.repeat(60000);
-      await summarizeText(longText);
-      
-      expect(mockCreate.mock.calls[0][0].messages[1].content.length).toBe(50000);
-    });
-    
-    it('should handle API errors', async () => {
-      mockCreate.mockRejectedValueOnce(new Error('API error'));
-      
-      const result = await summarizeText('Test content');
-      
-      expect(result).toBe('Error generating summary.');
-    });
-    
-    it('should handle empty response', async () => {
-      mockCreate.mockResolvedValueOnce({
-        choices: []
-      });
-      
-      const result = await summarizeText('Test content');
-      
-      expect(result).toBe('Summary not available.');
-    });
-  });
 
-  describe('analyzeSentiment', () => {
-    it('should call OpenAI API with correct parameters', async () => {
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'true' } }]
-      });
-      
-      const result = await analyzeSentiment('Test content');
-      
-      expect(OpenAI).toHaveBeenCalledWith({
-        apiKey: 'test-key',
-        baseURL: 'https://api.test'
-      });
-      
-      expect(mockCreate).toHaveBeenCalledWith({
-        model: expect.any(String),
-        messages: [
-          {
-            role: 'system',
-            content: expect.stringContaining('sentiment')
-          },
-          {
-            role: 'user',
-            content: 'Test content'
-          }
-        ]
-      }, expect.any(Object));
-      
-      expect(result).toBe(true);
+      const items = Array.from({ length: 25 }, (_, index) => ({
+        ...baseItems[index % baseItems.length],
+        title: `Story ${index + 1}`,
+        url: `https://example.com/${index + 1}`,
+        published: new Date('2024-01-01T00:00:00.000Z'),
+        score: 100 - index
+      }));
+
+      const result = await generateCategoryReport('Tech', items, 'Focus on robotics');
+
+      expect(result?.header).toBe('Morning intel');
+      expect(openAIMocks.parse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'report-model'
+        }),
+        expect.objectContaining({
+          timeout: 5 * 60 * 1000
+        })
+      );
+
+      const userMessage = openAIMocks.parse.mock.calls[0][0].messages[1].content as string;
+      expect(userMessage).toContain('Category: "Tech"');
+      expect(userMessage).toContain('SPECIFIC INSTRUCTIONS FOR CATEGORY "Tech"');
+      const itemOccurrences = userMessage.match(/Item \d+:/g) || [];
+      expect(itemOccurrences.length).toBe(20); // trimmed to top 20 items
     });
-    
-    it('should handle different positive response formats', async () => {
-      // Test 'true'
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'true' } }]
-      });
-      expect(await analyzeSentiment('Positive content')).toBe(true);
-      
-      // Test '"true"'
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: '"true"' } }]
-      });
-      expect(await analyzeSentiment('Positive content')).toBe(true);
-      
-      // Test text containing 'true'
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'The sentiment is true.' } }]
-      });
-      expect(await analyzeSentiment('Positive content')).toBe(true);
-      
-      // Test text containing 'positive'
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'positive' } }]
-      });
-      expect(await analyzeSentiment('Positive content')).toBe(true);
-    });
-    
-    it('should handle different negative response formats', async () => {
-      // Test 'false'
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'false' } }]
-      });
-      expect(await analyzeSentiment('Negative content')).toBe(false);
-      
-      // Test '"false"'
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: '"false"' } }]
-      });
-      expect(await analyzeSentiment('Negative content')).toBe(false);
-      
-      // Test other text
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'negative' } }]
-      });
-      expect(await analyzeSentiment('Negative content')).toBe(false);
-    });
-    
-    it('should truncate long text', async () => {
-      mockCreate.mockResolvedValueOnce({
-        choices: [{ message: { content: 'true' } }]
-      });
-      
-      const longText = 'a'.repeat(60000);
-      await analyzeSentiment(longText);
-      
-      expect(mockCreate.mock.calls[0][0].messages[1].content.length).toBe(50000);
-    });
-    
-    it('should handle API errors', async () => {
-      mockCreate.mockRejectedValueOnce(new Error('API error'));
-      
-      const result = await analyzeSentiment('Test content');
-      
-      expect(result).toBe(false); // Default to not positive on error
+
+    it('returns null when API key is missing', async () => {
+      delete process.env.OPENAI_API_KEY;
+      const result = await generateCategoryReport('Tech', baseItems, undefined);
+      expect(result).toBeNull();
+      expect(openAIMocks.parse).not.toHaveBeenCalled();
     });
   });
 });

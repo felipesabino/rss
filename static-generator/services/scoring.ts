@@ -1,9 +1,28 @@
+import fs from 'fs/promises';
+import path from 'path';
 import type { AIProcessedItem } from '../steps/4-process-with-openai';
 
 export interface RankedAIProcessedItem extends AIProcessedItem {
     rankingScore: number; // final blended score 0-100
     recencyScore: number;
     relevanceScore: number;
+}
+
+/**
+ * Persistent record with all the details needed to audit a scoring run.
+ */
+export interface ScoringAuditRecord {
+    label: string;
+    scoredAt: number;
+    customInstructions: string;
+    scoredItems: RankedAIProcessedItem[];
+    selectedItems: RankedAIProcessedItem[];
+    topKPerSource: number;
+}
+
+interface ScoringAuditCache {
+    records: ScoringAuditRecord[];
+    lastUpdated: number;
 }
 
 interface InstructionProfile {
@@ -25,6 +44,8 @@ const STOP_WORDS = new Set([
     'clearly', 'describe', 'impact', 'impacts', 'analysis', 'perform', 'classification', 'classifying', 'sentiment', 'overall'
 ]);
 
+const DEFAULT_TOP_K_PER_SOURCE = 3;
+
 /**
  * Selects the best items ensuring diversity across sources.
  * Strategy:
@@ -36,14 +57,32 @@ const STOP_WORDS = new Set([
 export function selectDiverseBestItems(
     items: AIProcessedItem[],
     customInstructions: string,
-    topKPerSource: number = 3
+    topKPerSource: number = DEFAULT_TOP_K_PER_SOURCE
+): RankedAIProcessedItem[] {
+    const scoredItems = scoreItemsForInstructions(items, customInstructions);
+    return selectTopRankedItems(scoredItems, topKPerSource);
+}
+
+/**
+ * Scores every item against the provided instructions and returns
+ * the enriched list with ranking metadata.
+ */
+export function scoreItemsForInstructions(
+    items: AIProcessedItem[],
+    customInstructions: string
 ): RankedAIProcessedItem[] {
     const profile = buildInstructionProfile(customInstructions);
+    return items.map(item => scoreItemAgainstInstruction(item, profile));
+}
 
-    // Score every item for the category using the instruction profile
-    const scoredItems = items.map(item => scoreItemAgainstInstruction(item, profile));
-
-    // Group by source
+/**
+ * Applies the diversity heuristic to a list that already contains ranking data.
+ * This is split from scoring so callers can cache/audit the scores before the selection.
+ */
+export function selectTopRankedItems(
+    scoredItems: RankedAIProcessedItem[],
+    topKPerSource: number = DEFAULT_TOP_K_PER_SOURCE
+): RankedAIProcessedItem[] {
     const itemsBySource = new Map<number, RankedAIProcessedItem[]>();
     for (const item of scoredItems) {
         if (!itemsBySource.has(item.feedId)) {
@@ -77,10 +116,83 @@ export function selectDiverseBestItems(
     return selectedItems;
 }
 
+/**
+ * Type guard used by report generation to check if an item already contains ranking data.
+ */
 export function hasRankingScore(item: AIProcessedItem): item is RankedAIProcessedItem {
     return typeof (item as RankedAIProcessedItem).rankingScore === 'number';
 }
 
+/**
+ * Persist the full scoring result so we can audit how the newsletter was built.
+ */
+export async function cacheScoringResult(record: ScoringAuditRecord): Promise<void> {
+    const cachePath = getScoringCachePath();
+    const cache = await loadScoringCache();
+
+    cache.records.unshift({
+        ...record,
+        scoredAt: record.scoredAt || Date.now()
+    });
+    cache.records = cache.records.slice(0, 200); // keep cache bounded
+    cache.lastUpdated = Date.now();
+
+    await fs.mkdir(path.dirname(cachePath), { recursive: true });
+    await fs.writeFile(
+        cachePath,
+        JSON.stringify(cache, (key, value) => {
+            if (value instanceof Date) {
+                return value.toISOString();
+            }
+            return value;
+        }, 2),
+        'utf-8'
+    );
+}
+
+/**
+ * Load the scoring cache. Returns an empty cache if no prior scoring runs exist.
+ */
+export async function loadScoringCache(): Promise<ScoringAuditCache> {
+    const cachePath = getScoringCachePath();
+
+    try {
+        const cacheData = await fs.readFile(cachePath, 'utf-8');
+        const rawCache = JSON.parse(cacheData) as ScoringAuditCache;
+
+        return {
+            records: (rawCache.records || []).map(record => ({
+                ...record,
+                scoredItems: record.scoredItems.map(item => ({
+                    ...item,
+                    published: new Date(item.published)
+                })),
+                selectedItems: record.selectedItems.map(item => ({
+                    ...item,
+                    published: new Date(item.published)
+                }))
+            })),
+            lastUpdated: rawCache.lastUpdated || 0
+        };
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+            console.error('Failed to load scoring cache:', error);
+        }
+
+        return {
+            records: [],
+            lastUpdated: 0
+        };
+    }
+}
+
+function getScoringCachePath(): string {
+    return process.env.SCORING_CACHE_PATH || path.join(process.cwd(), '.cache', 'scoring-history.json');
+}
+
+/**
+ * Build a keyword profile from the category instructions.
+ */
 function buildInstructionProfile(instruction: string): InstructionProfile {
     const normalized = instruction.replace(/[’‘]/g, '\'').replace(/[–—]/g, ' ');
     const tokenized = normalized
@@ -130,6 +242,9 @@ function buildInstructionProfile(instruction: string): InstructionProfile {
     };
 }
 
+/**
+ * Calculate ranking, recency, and relevance scores for a single item.
+ */
 function scoreItemAgainstInstruction(item: AIProcessedItem, profile: InstructionProfile): RankedAIProcessedItem {
     const now = Date.now();
     const publishedTime = new Date(item.published).getTime();
@@ -165,6 +280,9 @@ function scoreItemAgainstInstruction(item: AIProcessedItem, profile: Instruction
     };
 }
 
+/**
+ * Normalize text so scoring and keyword matching remain consistent.
+ */
 function normalizeContentForScoring(value: string): string {
     return value
         .toLowerCase()
@@ -175,6 +293,9 @@ function normalizeContentForScoring(value: string): string {
         .trim();
 }
 
+/**
+ * Count the occurrences of a keyword or phrase inside the normalized text.
+ */
 function countOccurrences(text: string, term: string, isPhrase: boolean): number {
     if (!term) {
         return 0;

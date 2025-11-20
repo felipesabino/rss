@@ -2,7 +2,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { loadAIProcessedContentCache, AIProcessedItem } from './4-process-with-openai';
 import { generateCategoryReport, ReportItem, Report } from '../services/openai';
-import { selectDiverseBestItems, hasRankingScore } from '../services/scoring';
+import {
+    cacheScoringResult,
+    hasRankingScore,
+    scoreItemsForInstructions,
+    selectTopRankedItems
+} from '../services/scoring';
 import { sources } from '../../config/sources';
 import { categoryPrompts } from '../../config/category-prompts';
 
@@ -21,6 +26,7 @@ interface ReportsCache {
 
 // Path to the reports cache file
 const REPORTS_CACHE_PATH = path.join(process.cwd(), '.cache', 'step5-reports.json');
+const TOP_K_PER_SOURCE = 3;
 
 /**
  * Generate newsletter-style reports for each category
@@ -96,7 +102,24 @@ export async function generateReports(): Promise<void> {
         // Only apply this strategy if the category has a specific prompt
         if (customInstructions) {
             console.log(`Applying diversity clustering and ranking for category "${category}"...`);
-            items = selectDiverseBestItems(items, customInstructions);
+            const scoredItems = scoreItemsForInstructions(items, customInstructions);
+            items = selectTopRankedItems(scoredItems, TOP_K_PER_SOURCE);
+
+            const scoredItemsForAudit = [...scoredItems].sort((a, b) => {
+                if (b.rankingScore !== a.rankingScore) {
+                    return b.rankingScore - a.rankingScore;
+                }
+                return new Date(b.published).getTime() - new Date(a.published).getTime();
+            });
+
+            await cacheScoringResult({
+                label: category,
+                customInstructions,
+                scoredItems: scoredItemsForAudit,
+                selectedItems: items,
+                topKPerSource: TOP_K_PER_SOURCE,
+                scoredAt: Date.now()
+            });
         } else {
             // Default behavior: Sort items by date (newest first)
             items.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
