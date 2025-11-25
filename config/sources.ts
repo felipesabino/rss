@@ -158,6 +158,33 @@ const sourceInputs: SourceInput[] = [
     categories: ["africa"],
     type: "google-search" as const,
   },
+  {
+    name: "Google Search - Africa - Disruptions & Natural Hazards",
+    query:
+      "(" +
+        "volcano OR eruption OR \"ash cloud\" OR \"volcanic ash\" OR earthquake OR " +
+        "flood OR flooding OR cyclone OR hurricane OR storm OR landslide OR " +
+        "\"dust storm\" OR wildfire OR drought OR \"natural disaster\" OR " +
+        "\"geological event\"" +
+      ") " +
+      "(" +
+        "airport OR airspace OR flights OR \"flight cancellations\" OR \"flight disruption\" OR " +
+        "\"air traffic\" OR NOTAM OR runway OR \"air route\" OR \"air corridor\" OR " +
+        "port OR harbour OR harbor OR canal OR \"shipping lane\" OR \"container ship\" OR " +
+        "\"supply chain\" OR logistics OR \"trade route\" OR \"vessel traffic\" OR " +
+        "\"navigation warning\"" +
+      ") " +
+      "(" +
+        "Africa OR African OR Ethiopia OR Kenya OR Tanzania OR Uganda OR Rwanda OR " +
+        "Somalia OR Sudan OR \"Red Sea\" OR \"Gulf of Aden\" OR \"Bab el-Mandeb\" OR " +
+        "\"Suez Canal\" OR Niger OR Nigeria OR Ghana OR Senegal OR Congo OR " +
+        "Mozambique OR Angola" +
+      ")",
+    num: 10,
+    dateRestrict: "d7",
+    categories: ["africa"],
+    type: "google-search" as const,
+  }
 ];
 
 export const sources: SourceConfig[] = sourceInputs.map((source, index) => {
