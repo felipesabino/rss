@@ -6,10 +6,6 @@ on:
       cache-key:
         description: 'Exact cache key to restore (must match what you used when saving the cache)'
         required: true
-      cache-path:
-        description: 'Path where the cache should be restored (same as in your cache step)'
-        required: true
-        default: 'cache'
 
 jobs:
   dump-cache:
@@ -40,3 +36,6 @@ jobs:
           path: |
             .cache
           if-no-files-found: error
+          compression-level: 6
+          overwrite: false
+          include-hidden-files: true
