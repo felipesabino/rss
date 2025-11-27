@@ -1,0 +1,956 @@
+[
+  {
+    "id": "task-2-data-model",
+    "title": "Design multi-tenant data model for RSS/news pipeline",
+    "description": "Design a normalized relational data model for a multi-tenant static generator that ingests RSS feeds and Google Custom Search results, processes content via a 6-step pipeline, runs AI summarization/scoring, generates per-user reports, and outputs static HTML pages. The model must support multiple users, each with their own configured sources, retain historical data for a limited time, allow users to save posts, and support auditability of pipeline runs and scoring.",
+    "context": {
+      "project_goal": "Transform a single-tenant, JSON-cache-based static generator into a multi-tenant, database-backed system where each user has their own RSS/search sources, reports, and public static HTML pages.",
+      "current_pipeline": [
+        "Step1: Fetch sources and write .cache/step1-raw-feeds.json",
+        "Step2: Extract content, write .cache/step2-extracted-content.json",
+        "Step3: Process content, write .cache/step3-processed-content.json",
+        "Step4: AI analysis (summary + positivity), write .cache/step4-ai-processed-content.json",
+        "Step5: Generate reports and scoring audit, write .cache/step5-reports.json and .cache/scoring-history.json",
+        "Step6: Generate static HTML, write dist/index.html"
+      ],
+      "future_requirements": [
+        "Support multiple users/tenants",
+        "Each user can configure RSS feeds and Google search queries",
+        "Store all feed items, extracted content, processed content, AI results, and reports for a limited retention window",
+        "Allow users to save individual posts and summaries",
+        "Generate per-user static HTML pages (main page + history)",
+        "Support hourly updates and periodic cleanup based on retention",
+        "Maintain auditability of pipeline runs and scoring decisions"
+      ],
+      "assumptions": [
+        "A relational DB will be used (e.g., Postgres)",
+        "Data must be queryable per user and per pipeline run",
+        "Saved items must be exempt from automatic deletion"
+      ]
+    },
+    "dependencies": [
+      "task-1-baseline"
+    ],
+    "artifacts": [
+      {
+        "path": "docs/data-model.md",
+        "type": "markdown",
+        "required_sections": [
+          "System Overview",
+          "Entity List and Purpose",
+          "Table Definitions with Fields/Types/PK/FK",
+          "ERD Diagram (e.g., Mermaid)",
+          "Retention Rules"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "description": "Optional: render ERD previews or run markdown lint if available",
+        "run": "npm run lint-docs",
+        "optional": true
+      }
+    ],
+    "verification": [
+      "docs/data-model.md exists.",
+      "docs/data-model.md contains a clear mapping from each pipeline step (1\u20135) output to concrete tables/fields.",
+      "All required entities are present: User, SourceConfig, PipelineRun, FeedItem, ExtractedContent, ProcessedContent, AIAnalysis, Report, ReportItem, SavedItem (and optional RetentionAuditLog).",
+      "The ERD shows relationships that allow reconstructing a report and its items from DB alone.",
+      "Retention rules describe how data older than a configured window is deleted without removing SavedItem-related data."
+    ],
+    "status": "in_progress"
+  },
+  {
+    "id": "task-3-db-choice",
+    "title": "Choose database engine, ORM, and setup strategy",
+    "description": "Select the database engine (e.g., Postgres), ORM or query builder (e.g., Prisma or Drizzle), and migration strategy. Document how developers and agents will run the DB locally (prefer Docker), how migrations are executed, and how the app connects to the DB via environment variables.",
+    "context": {
+      "project_goal": "Migrate from JSON-based storage to a proper relational DB that supports multi-tenancy, auditability, and retention.",
+      "constraints": [
+        "Type-safe schema definitions preferred",
+        "Migrations should be easy to generate and apply",
+        "Local development must be simple to spin up",
+        "CI/CD should be able to run migrations non-interactively"
+      ],
+      "inputs": [
+        "docs/data-model.md (from task-2-data-model)",
+        ".env.example"
+      ]
+    },
+    "dependencies": [
+      "task-2-data-model"
+    ],
+    "artifacts": [
+      {
+        "path": "docs/database-choice.md",
+        "type": "markdown",
+        "required_sections": [
+          "Chosen Database Engine and Rationale",
+          "Chosen ORM/Query Layer and Rationale",
+          "Migration Strategy",
+          "Local Development Setup (e.g., Docker instructions)",
+          "Environment Variables (e.g., DATABASE_URL)"
+        ]
+      },
+      {
+        "path": "docker-compose.yml",
+        "type": "yaml",
+        "required": true
+      },
+      {
+        "path": ".env.example",
+        "type": "env",
+        "required_keys": [
+          "DATABASE_URL"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "description": "Bring up the DB using Docker",
+        "run": "docker-compose up -d"
+      },
+      {
+        "description": "Optional: run a minimal DB connectivity check script if already created",
+        "run": "node scripts/test-db-connection.js",
+        "optional": true
+      }
+    ],
+    "verification": [
+      "docs/database-choice.md exists and explains why the chosen DB and ORM fit the project\u2019s multi-tenant pipeline use case.",
+      "docker-compose.yml defines a database service with the selected engine.",
+      ".env.example contains a DATABASE_URL placeholder with the correct syntax for the chosen DB.",
+      "Running `docker-compose up -d` starts the DB container successfully (no crash loops)."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-4-init-orm-and-schema",
+    "title": "Initialize ORM and implement initial schema migration",
+    "description": "Set up the chosen ORM (e.g., Prisma or Drizzle), define the schema according to docs/data-model.md, and generate the first migration that creates all core tables. Provide npm scripts to run and reset migrations.",
+    "context": {
+      "project_goal": "Create a concrete relational schema in the chosen DB that matches the designed data model so that pipeline code can later persist and read data.",
+      "input_specs": [
+        "Use entities and fields defined in docs/data-model.md from task-2-data-model.",
+        "Respect multi-tenant design (all user-scoped tables must have userId or equivalent).",
+        "Include timestamps for auditability (createdAt, updatedAt where needed)."
+      ]
+    },
+    "dependencies": [
+      "task-3-db-choice"
+    ],
+    "artifacts": [
+      {
+        "path": "prisma/schema.prisma",
+        "type": "orm-schema",
+        "required_if_orm": "prisma"
+      },
+      {
+        "path": "drizzle.config.ts",
+        "type": "orm-schema",
+        "required_if_orm": "drizzle"
+      },
+      {
+        "path": "migrations/",
+        "type": "directory",
+        "required": true
+      },
+      {
+        "path": "package.json",
+        "type": "json",
+        "must_include_scripts": [
+          "db:migrate",
+          "db:reset"
+        ]
+      },
+      {
+        "path": "scripts/test-db-connection.ts",
+        "type": "typescript",
+        "required": false
+      }
+    ],
+    "commands": [
+      {
+        "description": "Generate and apply migrations using the ORM",
+        "run": "npm run db:migrate"
+      },
+      {
+        "description": "Optional: reset DB (drop + recreate) to test idempotency",
+        "run": "npm run db:reset",
+        "optional": true
+      }
+    ],
+    "verification": [
+      "ORM schema file exists and matches docs/data-model.md entities and relationships.",
+      "Running `npm run db:migrate` completes successfully and creates tables in the DB.",
+      "Inspecting the DB (e.g., via psql or ORM introspection) shows all core tables: User, SourceConfig, PipelineRun, FeedItem, ExtractedContent, ProcessedContent, AIAnalysis, Report, ReportItem, SavedItem.",
+      "If a test DB connection script exists, running it confirms a successful connection with no runtime errors."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-5-seed-default-user",
+    "title": "Seed a default user for backward-compatible single-tenant mode",
+    "description": "Create a script that inserts a default user into the database so that the existing generator logic can be gradually adapted to multi-tenancy while still having a fallback single-tenant context.",
+    "context": {
+      "project_goal": "Preserve current behavior while transitioning to multi-tenancy by having a `default` user that represents the current single-tenant configuration.",
+      "assumptions": [
+        "User table and schema already exist from task-4-init-orm-and-schema.",
+        "Later tasks will migrate feed source configuration into SourceConfig linked to this default user."
+      ],
+      "desired_user_properties": {
+        "id": "default",
+        "slug": "default",
+        "email": "default@example.com (or placeholder)",
+        "createdAt": "now",
+        "isActive": true
+      }
+    },
+    "dependencies": [
+      "task-4-init-orm-and-schema"
+    ],
+    "artifacts": [
+      {
+        "path": "scripts/seed-default-user.ts",
+        "type": "typescript",
+        "required": true
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run the seeding script to create the default user",
+        "run": "npx ts-node scripts/seed-default-user.ts"
+      }
+    ],
+    "verification": [
+      "scripts/seed-default-user.ts exists and uses the chosen ORM to connect to the DB.",
+      "Running the script inserts a row into the User table with id='default' (and other fields as documented).",
+      "Re-running the script does NOT create duplicate users (idempotent behavior, e.g., via upsert or pre-check).",
+      "Querying the DB (e.g., SELECT * FROM User WHERE id='default') returns exactly one row."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-6-pipeline-store-abstraction",
+    "title": "Introduce PipelineStore abstraction for pipeline steps",
+    "description": "Create a unified PipelineStore abstraction layer that hides how intermediate pipeline data is stored. Initially, implement a FilePipelineStore that preserves the current behavior of reading/writing JSON files in the .cache directory. Refactor all pipeline steps (1\u20135) to depend on PipelineStore instead of directly accessing the filesystem.",
+    "context": {
+      "project_goal": "Prepare the codebase to switch from file-based JSON cache to database-backed storage without changing pipeline logic. This is a structural refactor that maintains existing behavior but makes later DB integration trivial.",
+      "current_behavior": [
+        "Each step reads/writes JSON files directly in the .cache directory.",
+        "Step1 writes .cache/step1-raw-feeds.json, Step2 writes .cache/step2-extracted-content.json, etc."
+      ],
+      "target_behavior": [
+        "All step implementations depend on an injected PipelineStore interface.",
+        "A FilePipelineStore implementation persists data in the same .cache JSON format to keep compatibility.",
+        "Later, a DbPipelineStore will be added, but this task must not change external behavior."
+      ]
+    },
+    "dependencies": [
+      "task-1-baseline"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/services/pipeline-store.ts",
+        "type": "typescript",
+        "required": true
+      },
+      {
+        "path": "static-generator/steps/1-fetch-sources.ts",
+        "type": "typescript",
+        "must_use_interface": "PipelineStore"
+      },
+      {
+        "path": "static-generator/steps/2-extract-content.ts",
+        "type": "typescript",
+        "must_use_interface": "PipelineStore"
+      },
+      {
+        "path": "static-generator/steps/3-process-content.ts",
+        "type": "typescript",
+        "must_use_interface": "PipelineStore"
+      },
+      {
+        "path": "static-generator/steps/4-process-with-openai.ts",
+        "type": "typescript",
+        "must_use_interface": "PipelineStore"
+      },
+      {
+        "path": "static-generator/steps/5-generate-reports.ts",
+        "type": "typescript",
+        "must_use_interface": "PipelineStore"
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run full pipeline with file-based store to ensure behavior unchanged",
+        "run": "npm run build"
+      }
+    ],
+    "verification": [
+      "pipeline-store.ts defines a PipelineStore interface with save/load methods for each step (Step1\u2013Step5, scoring/audit, etc.).",
+      "A FilePipelineStore implementation exists that reads/writes the same .cache JSON files as before.",
+      "All step files (1\u20135) no longer import or directly manipulate .cache files; they use PipelineStore instead.",
+      "Running `npm run build` produces dist/index.html identical (or near-identical) to the baseline captured in docs/baseline.md.",
+      "All existing tests related to the pipeline still pass."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-7-db-pipeline-store",
+    "title": "Implement DbPipelineStore and map pipeline data into DB schema",
+    "description": "Create a DbPipelineStore implementation of the PipelineStore interface that persists pipeline outputs (Step1\u2013Step5) into the normalized database schema defined earlier. Ensure that every pipeline stage can round-trip data correctly via DB reads/writes.",
+    "context": {
+      "project_goal": "Enable the pipeline to persist intermediate and final data into the relational database for multi-tenant support, auditing, and retention.",
+      "requirements": [
+        "Step1 results must populate FeedItem (and possibly Source metadata) linked to a user and a PipelineRun.",
+        "Step2 results must populate ExtractedContent linked to FeedItem.",
+        "Step3 results must populate ProcessedContent linked to FeedItem.",
+        "Step4 results must populate AIAnalysis linked to FeedItem.",
+        "Step5 results must populate Report and ReportItem entities.",
+        "Scoring/audit data should be persisted in appropriate tables or JSON fields."
+      ],
+      "notes": [
+        "Field mapping must be consistent with docs/data-model.md and the actual ORM schema.",
+        "Do not yet switch the default pipeline to use DbPipelineStore; that is Task 8."
+      ]
+    },
+    "dependencies": [
+      "task-4-init-orm-and-schema",
+      "task-6-pipeline-store-abstraction"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/services/pipeline-store.ts",
+        "type": "typescript",
+        "must_define_class": "DbPipelineStore"
+      },
+      {
+        "path": "static-generator/services/db-client.ts",
+        "type": "typescript",
+        "required": false
+      },
+      {
+        "path": "tests/db-pipeline-store.test.ts",
+        "type": "typescript",
+        "required": false
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run unit tests for DbPipelineStore if present",
+        "run": "npm test",
+        "optional": true
+      }
+    ],
+    "verification": [
+      "DbPipelineStore implements all methods defined in PipelineStore.",
+      "Running individual steps with DbPipelineStore (manually wired in a test script) inserts the correct rows into the database tables.",
+      "Reading back via DbPipelineStore returns objects with the same shape as FilePipelineStore (or as required by the step logic).",
+      "Foreign key relationships (e.g., FeedItem -> ExtractedContent -> ProcessedContent -> AIAnalysis -> ReportItem) are consistent and valid.",
+      "No runtime errors occur during test or manual runs using DbPipelineStore."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-8-switch-default-store-to-db",
+    "title": "Switch default pipeline store to DbPipelineStore with fallback to FilePipelineStore",
+    "description": "Modify the main generator entrypoint so that DbPipelineStore is the default storage backend for pipeline runs. Introduce configuration via environment variable and/or CLI flag to allow switching between DB and file store, with DB as the default.",
+    "context": {
+      "project_goal": "Make the application database-backed by default while preserving an escape hatch for file-based storage during transition.",
+      "requirements": [
+        "Default behavior when running `npm run build` or `node static-generator/generator.ts --all` should use DbPipelineStore.",
+        "Provide configuration via env (e.g., PIPELINE_STORE=db|file) and/or CLI flag (e.g., --use-file-store) to override.",
+        "Ensure the generator connects to the database and fails clearly if DB is unavailable."
+      ],
+      "assumptions": [
+        "Database schema is migrated and available.",
+        "DbPipelineStore is implemented and tested."
+      ]
+    },
+    "dependencies": [
+      "task-7-db-pipeline-store",
+      "task-5-seed-default-user"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/generator.ts",
+        "type": "typescript",
+        "required": true
+      },
+      {
+        "path": "README.md",
+        "type": "markdown",
+        "required_sections": [
+          "Database Requirements",
+          "PIPELINE_STORE configuration",
+          "Using File Store for Debugging"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run full pipeline with DB store (default)",
+        "run": "npm run build"
+      },
+      {
+        "description": "Run full pipeline forcing file store",
+        "run": "PIPELINE_STORE=file npm run build",
+        "optional": true
+      }
+    ],
+    "verification": [
+      "generator.ts selects DbPipelineStore when no explicit override is provided.",
+      "Running `npm run build` uses DbPipelineStore (can be checked via logs or by observing DB writes).",
+      "Setting PIPELINE_STORE=file (or passing equivalent CLI flag) successfully switches back to FilePipelineStore.",
+      "dist/index.html and other outputs are still generated correctly under DB-backed runs.",
+      "Error handling is clear when DB connection fails (e.g., informative message, non-zero exit code)."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-9-thread-user-id-through-pipeline",
+    "title": "Make pipeline user-aware via userId in CLI and internal APIs",
+    "description": "Modify the generator CLI and pipeline functions so that all pipeline executions are scoped to a specific userId. Add support for a --user-id flag and prepare for running the pipeline per user.",
+    "context": {
+      "project_goal": "Transform the pipeline from single-tenant to multi-tenant, where each run is associated with a specific user and their configured sources.",
+      "requirements": [
+        "Add a --user-id <id> flag to generator.ts.",
+        "If --user-id is omitted, default to the 'default' user for backward compatibility.",
+        "Record the userId and pipeline metadata in PipelineRun table for every run.",
+        "Ensure all DbPipelineStore operations correctly scope data by userId and runId where applicable."
+      ],
+      "assumptions": [
+        "User table and default user already exist.",
+        "DbPipelineStore is in use by default (Task 8)."
+      ]
+    },
+    "dependencies": [
+      "task-8-switch-default-store-to-db"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/generator.ts",
+        "type": "typescript",
+        "must_support_flags": [
+          "--user-id"
+        ]
+      },
+      {
+        "path": "static-generator/steps/*.ts",
+        "type": "typescript",
+        "note": "Step functions should accept userId or context including userId"
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run pipeline for the default user explicitly",
+        "run": "node static-generator/generator.js --all --user-id default"
+      },
+      {
+        "description": "Run pipeline without userId to test defaulting behavior",
+        "run": "node static-generator/generator.js --all"
+      }
+    ],
+    "verification": [
+      "When running with --user-id default, a PipelineRun row is created with userId='default'.",
+      "When running without --user-id, behavior is equivalent to using 'default' user.",
+      "DbPipelineStore writes (FeedItem, ExtractedContent, etc.) are associated with the correct user via foreign keys or inferred via PipelineRun.",
+      "No references remain that assume a global/single user without userId context."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-10-sources-to-db",
+    "title": "Move source configuration from config/sources.ts into SourceConfig table",
+    "description": "Migrate the configuration of RSS feeds and Google search queries from the static TypeScript file (config/sources.ts) into the database, linked to users via SourceConfig. Update Step1 to read these configurations from DB instead of the file.",
+    "context": {
+      "project_goal": "Make source configuration user-specific and editable via DB/administrative interfaces rather than hard-coded in TypeScript.",
+      "current_state": [
+        "config/sources.ts defines all RSS feeds and Google search queries.",
+        "Step1 imports and uses this file directly."
+      ],
+      "target_state": [
+        "SourceConfig table stores all feeds/queries with userId, type, URL or query string, categories, and active flags.",
+        "Step1 queries SourceConfig for the current userId and uses these sources.",
+        "config/sources.ts is no longer needed for runtime behavior, though it may be used once to seed the DB."
+      ]
+    },
+    "dependencies": [
+      "task-9-thread-user-id-through-pipeline"
+    ],
+    "artifacts": [
+      {
+        "path": "scripts/migrate-sources-to-db.ts",
+        "type": "typescript",
+        "required": true
+      },
+      {
+        "path": "static-generator/steps/1-fetch-sources.ts",
+        "type": "typescript",
+        "must_not_import": "config/sources.ts"
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run migration script to populate SourceConfig for default user",
+        "run": "npx ts-node scripts/migrate-sources-to-db.ts"
+      },
+      {
+        "description": "Run Step1 for default user",
+        "run": "node static-generator/generator.js --step1 --user-id default"
+      }
+    ],
+    "verification": [
+      "SourceConfig table contains records corresponding to the previous config/sources.ts entries, linked to userId='default'.",
+      "Step1 no longer imports or reads config/sources.ts and instead queries the DB for SourceConfig.",
+      "Running Step1 produces the same logical set of sources as before the migration.",
+      "Further modifications to SourceConfig in DB are reflected in subsequent Step1 runs."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-11-multi-user-run-support",
+    "title": "Support running the pipeline for all users (multi-tenant execution)",
+    "description": "Extend the generator to support an --all-users mode that runs the pipeline for every active user in the database. This will be used in cron/scheduled execution to update all tenants periodically.",
+    "context": {
+      "project_goal": "Automate updates for all tenants by running the pipeline once per user on a schedule.",
+      "requirements": [
+        "Add a --all-users flag to generator.ts.",
+        "When --all-users is provided, fetch all active users from DB and run the appropriate pipeline steps for each user sequentially (or with controlled concurrency).",
+        "Ensure logs clearly identify which user is being processed in each run.",
+        "Maintain compatibility with --user-id flag for single-user runs."
+      ]
+    },
+    "dependencies": [
+      "task-10-sources-to-db"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/generator.ts",
+        "type": "typescript",
+        "must_support_flags": [
+          "--all-users"
+        ]
+      },
+      {
+        "path": "docs/scheduling.md",
+        "type": "markdown",
+        "required_sections": [
+          "Running Pipeline for All Users",
+          "Example Cron/CI Schedule"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run pipeline for all users (with at least one extra test user created manually)",
+        "run": "node static-generator/generator.js --all --all-users"
+      }
+    ],
+    "verification": [
+      "When multiple users exist in the User table, running with --all-users triggers separate PipelineRun entries per user.",
+      "Each user gets their own FeedItem/Report data populated for the current run.",
+      "No user\u2019s data leaks into another user\u2019s run (e.g., FeedItems are not associated with the wrong userId).",
+      "docs/scheduling.md explains how to run this regularly via cron or CI."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-12-output-structure-design",
+    "title": "Design per-user static output structure for generated HTML",
+    "description": "Decide and document how static HTML files will be organized on disk for each user, including the main page and historical report pages.",
+    "context": {
+      "project_goal": "Provide a clear, consistent filesystem layout that maps each user to a public static site, with history of reports accessible via URLs.",
+      "example_structure": [
+        "dist/<userSlug>/index.html (latest report / main page)",
+        "dist/<userSlug>/reports/<reportId>.html or <YYYY-MM-DD-HH>.html (historical reports)",
+        "Optional: dist/index.html listing all public users and links to their pages"
+      ]
+    },
+    "dependencies": [
+      "task-11-multi-user-run-support"
+    ],
+    "artifacts": [
+      {
+        "path": "docs/output-structure.md",
+        "type": "markdown",
+        "required_sections": [
+          "Per-user Directory Layout",
+          "Naming Conventions for \"userSlug\"",
+          "Historical Report URL Strategy",
+          "Optional Global Index Page"
+        ]
+      }
+    ],
+    "commands": [],
+    "verification": [
+      "docs/output-structure.md exists and clearly describes the directory and naming conventions.",
+      "The document provides enough detail that Step6 can later be implemented to write HTML files consistently based on this spec.",
+      "Examples in the document show how URLs would look for different users and reports."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-13-step6-db-backed-rendering",
+    "title": "Refactor Step6 to read from DB and render per-user HTML",
+    "description": "Change Step6 so it no longer reads .cache JSON files. Instead, it should query the database for the latest report and associated items for a given user and render static HTML into the per-user directory structure defined in docs/output-structure.md.",
+    "context": {
+      "project_goal": "Make HTML generation fully DB-backed and multi-tenant. After the pipeline runs, Step6 should produce public static pages based on DB data for each user.",
+      "requirements": [
+        "Step6 must accept userId (and/or be invoked once per user from the generator).",
+        "It must fetch the latest Report for that user, plus associated ReportItems, FeedItems, and AIAnalysis as needed.",
+        "It must produce dist/<userSlug>/index.html.",
+        "index.ejs (or other templates) should receive the same logical data context as before, but sourced from DB instead of .cache."
+      ]
+    },
+    "dependencies": [
+      "task-12-output-structure-design"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/steps/6-generate-html.ts",
+        "type": "typescript",
+        "required": true
+      },
+      {
+        "path": "static-generator/services/db-reports.ts",
+        "type": "typescript",
+        "required": false
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run full pipeline including Step6 for default user",
+        "run": "node static-generator/generator.js --all --user-id default"
+      }
+    ],
+    "verification": [
+      "Step6 no longer reads .cache/step5-reports.json directly.",
+      "dist/<userSlug>/index.html is created for the user and contains the latest report content.",
+      "The content shown in the generated HTML matches what is stored in the latest Report and ReportItem rows in the DB.",
+      "If the pipeline is rerun, Step6 updates the latest HTML accordingly."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-14-historical-report-html",
+    "title": "Generate static HTML pages for historical reports per user",
+    "description": "Extend the HTML generation logic so that, in addition to the main index.html for a user, static pages are generated for historical reports (past PipelineRun/Report entries), and the main page links to them.",
+    "context": {
+      "project_goal": "Allow users to browse previous reports through static pages, so that the main page shows the latest report plus navigation to past reports.",
+      "requirements": [
+        "For each Report belonging to a user, generate a unique HTML page in dist/<userSlug>/reports/...",
+        "Use either reportId or a date-based naming convention as defined in docs/output-structure.md.",
+        "Update the main index.html per user to include links to these historical report pages."
+      ]
+    },
+    "dependencies": [
+      "task-13-step6-db-backed-rendering"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/steps/6-generate-html.ts",
+        "type": "typescript",
+        "note": "Extended to generate history pages"
+      },
+      {
+        "path": "static-generator/templates/index.ejs",
+        "type": "ejs",
+        "note": "Updated to show links to previous reports"
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run pipeline multiple times to generate historical reports, then generate HTML",
+        "run": "node static-generator/generator.js --all --user-id default"
+      }
+    ],
+    "verification": [
+      "After multiple runs, dist/<userSlug>/reports/ contains multiple HTML files representing different reports.",
+      "dist/<userSlug>/index.html lists and links to these historical report pages.",
+      "Each historical page displays the content corresponding to the specific Report row in the DB.",
+      "Links work correctly when opening the static files in a browser."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-15-add-retention-metadata",
+    "title": "Add retention-related metadata to time-varying tables",
+    "description": "Update the database schema so that all time-varying entities include timestamps (createdAt, updatedAt) and optionally expiresAt. This metadata will be used later to implement automatic retention-based cleanup.",
+    "context": {
+      "project_goal": "Enable a retention policy where data older than X months is deleted while respecting saved items and audit requirements.",
+      "entities": [
+        "FeedItem",
+        "ExtractedContent",
+        "ProcessedContent",
+        "AIAnalysis",
+        "Report",
+        "ReportItem"
+      ]
+    },
+    "dependencies": [
+      "task-4-init-orm-and-schema"
+    ],
+    "artifacts": [
+      {
+        "path": "migrations/*",
+        "type": "directory",
+        "note": "New migration(s) adding timestamps and optional expiresAt"
+      },
+      {
+        "path": "orm-schema-file",
+        "type": "generic",
+        "note": "e.g., prisma/schema.prisma or drizzle schema file, updated with timestamp fields"
+      },
+      {
+        "path": ".env.example",
+        "type": "env",
+        "required_keys": [
+          "RETENTION_MONTHS"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run DB migration to add retention fields",
+        "run": "npm run db:migrate"
+      }
+    ],
+    "verification": [
+      "ORM schema includes createdAt (and optionally updatedAt, expiresAt) for time-varying tables.",
+      "DB schema after migration includes these fields.",
+      "Newly created rows in those tables automatically receive createdAt values.",
+      ".env.example documents RETENTION_MONTHS with a default or placeholder value."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-16-retention-cleanup-script",
+    "title": "Implement automatic retention cleanup script",
+    "description": "Create a script that deletes old pipeline data beyond the retention window defined by RETENTION_MONTHS, while keeping SavedItem data and any rows required for those saved items.",
+    "context": {
+      "project_goal": "Prevent unbounded growth of DB size by periodically deleting old data while preserving user-saved content.",
+      "requirements": [
+        "Define deletion order to respect foreign key constraints (e.g., ReportItem -> Report, AIAnalysis -> ProcessedContent -> ExtractedContent -> FeedItem).",
+        "Exclude any rows that are directly or indirectly referenced by SavedItem.",
+        "Log actions for auditability (e.g., number of rows deleted per table)."
+      ]
+    },
+    "dependencies": [
+      "task-15-add-retention-metadata"
+    ],
+    "artifacts": [
+      {
+        "path": "scripts/cleanup-retention.ts",
+        "type": "typescript",
+        "required": true
+      },
+      {
+        "path": "docs/retention.md",
+        "type": "markdown",
+        "required_sections": [
+          "Retention Policy",
+          "How Cleanup Script Works",
+          "How to Schedule Cleanup"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run cleanup script",
+        "run": "npx ts-node scripts/cleanup-retention.ts"
+      }
+    ],
+    "verification": [
+      "With test data older than RETENTION_MONTHS, running the script deletes those rows.",
+      "Rows linked to SavedItem (and their necessary parents like FeedItem/Report) are preserved.",
+      "No foreign key constraint errors occur during deletion.",
+      "docs/retention.md explains how and when to run this script in production (e.g., via cron)."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-17-add-indexes",
+    "title": "Add indexes for multi-tenant query performance",
+    "description": "Define and apply database indexes on key columns (e.g., userId, createdAt, reportId, feedItemId) to keep queries performant as data volume and number of tenants grow.",
+    "context": {
+      "project_goal": "Ensure efficient querying for multi-tenant workloads such as fetching latest reports per user, listing recent feed items, and running retention cleanup.",
+      "recommended_indexes": [
+        "FeedItem(userId, createdAt)",
+        "Report(userId, createdAt)",
+        "ReportItem(reportId)",
+        "AIAnalysis(feedItemId)",
+        "SavedItem(userId, feedItemId)"
+      ]
+    },
+    "dependencies": [
+      "task-4-init-orm-and-schema"
+    ],
+    "artifacts": [
+      {
+        "path": "migrations/*",
+        "type": "directory",
+        "note": "New migration(s) creating the necessary indexes"
+      }
+    ],
+    "commands": [
+      {
+        "description": "Apply index migration",
+        "run": "npm run db:migrate"
+      }
+    ],
+    "verification": [
+      "DB schema shows the newly created indexes.",
+      "Explain plans for key queries (e.g., fetching latest Report per user) show index usage.",
+      "No regressions or failures during normal pipeline runs after adding indexes."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-18-saved-items-persistence",
+    "title": "Implement SavedItem persistence and API/CLI to save items",
+    "description": "Provide a way for users to mark feed items as saved, storing this in the SavedItem table. Implement minimal programmatic access (CLI command or HTTP endpoint) to create SavedItem entries linked to users and feed items.",
+    "context": {
+      "project_goal": "Allow users to preserve specific posts and summaries beyond the general retention window.",
+      "requirements": [
+        "SavedItem table must link userId and feedItemId, plus optional metadata (e.g., savedSummary, createdAt).",
+        "Provide a minimal interface (CLI or HTTP endpoint) to create SavedItem entries.",
+        "Retention cleanup (Task 16) must respect SavedItem and avoid deleting linked content."
+      ]
+    },
+    "dependencies": [
+      "task-4-init-orm-and-schema",
+      "task-16-retention-cleanup-script"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/services/saved-items.ts",
+        "type": "typescript",
+        "required": false
+      },
+      {
+        "path": "scripts/save-item-cli.ts",
+        "type": "typescript",
+        "required": false
+      },
+      {
+        "path": "api/save-item.ts",
+        "type": "typescript",
+        "required": false
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run a test save action (CLI or API call via curl)",
+        "run": "npx ts-node scripts/save-item-cli.ts --user-id default --feed-item-id <some-id>",
+        "optional": true
+      }
+    ],
+    "verification": [
+      "Calling the save action inserts a row into SavedItem with correct userId and feedItemId.",
+      "Running the retention cleanup script does not delete the FeedItem or related ReportItem/Report rows for saved items.",
+      "When re-running Step6, saved items are still present and associated with the correct user."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-19-display-saved-items-and-history",
+    "title": "Expose saved posts and previous reports in user HTML",
+    "description": "Update the HTML templates and Step6 rendering logic so users can see their saved items and navigate previous reports from their main page.",
+    "context": {
+      "project_goal": "Provide a richer user-facing experience by surfacing saved posts and easy navigation to historical reports on each user's main static page.",
+      "requirements": [
+        "Main user page (dist/<userSlug>/index.html) must include a 'Saved Items' section, listing saved feed items and/or summaries.",
+        "Main page must also display a list of previous reports with links to their static HTML pages.",
+        "Design should reuse existing brutalist style as much as possible."
+      ]
+    },
+    "dependencies": [
+      "task-14-historical-report-html",
+      "task-18-saved-items-persistence"
+    ],
+    "artifacts": [
+      {
+        "path": "static-generator/templates/index.ejs",
+        "type": "ejs",
+        "required": true
+      },
+      {
+        "path": "static-generator/steps/6-generate-html.ts",
+        "type": "typescript",
+        "note": "Updated to include saved items and previous report list in template context"
+      }
+    ],
+    "commands": [
+      {
+        "description": "Run pipeline and regenerate HTML for a user with saved items and history",
+        "run": "node static-generator/generator.js --all --user-id default"
+      }
+    ],
+    "verification": [
+      "dist/<userSlug>/index.html includes a saved items section with real SavedItem entries.",
+      "dist/<userSlug>/index.html includes a list of previous reports and links to their static pages.",
+      "Clicking on saved item links and previous report links in a browser opens the correct content.",
+      "The page remains valid HTML and visually consistent with the existing design."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "task-20-admin-config-interface",
+    "title": "Add minimal admin API/CLI to manage users and sources",
+    "description": "Implement a small administrative layer (HTTP endpoints or CLI commands) that allows creating/updating users and their SourceConfig records without modifying code. This is required to operate the multi-tenant system in practice.",
+    "context": {
+      "project_goal": "Make it possible to onboard new users and manage their feeds/search queries without editing TypeScript and redeploying.",
+      "requirements": [
+        "Ability to create a new user with slug, email, active flag.",
+        "Ability to create/update/delete SourceConfig entries for a user.",
+        "Optional: ability to list PipelineRuns and last run status per user."
+      ]
+    },
+    "dependencies": [
+      "task-10-sources-to-db",
+      "task-11-multi-user-run-support"
+    ],
+    "artifacts": [
+      {
+        "path": "api/admin/users.ts",
+        "type": "typescript",
+        "required": false
+      },
+      {
+        "path": "api/admin/sources.ts",
+        "type": "typescript",
+        "required": false
+      },
+      {
+        "path": "scripts/admin-user-cli.ts",
+        "type": "typescript",
+        "required": false
+      },
+      {
+        "path": "docs/admin-api.md",
+        "type": "markdown",
+        "required_sections": [
+          "Creating Users",
+          "Managing Sources",
+          "Example Calls/Commands"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "description": "Create a new user via admin interface (CLI or HTTP)",
+        "run": "npx ts-node scripts/admin-user-cli.ts create --slug test-user --email test@example.com",
+        "optional": true
+      }
+    ],
+    "verification": [
+      "Admin interface can create a new user, which appears in the User table.",
+      "Admin interface can create SourceConfig entries for that user.",
+      "Running the pipeline with --user-id for the new user successfully processes their sources and generates HTML.",
+      "docs/admin-api.md provides clear usage instructions for these operations."
+    ],
+    "status": "pending"
+  }
+]
