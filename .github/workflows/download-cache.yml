@@ -1,0 +1,42 @@
+name: Download Cache as Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      cache-key:
+        description: 'Exact cache key to restore (must match what you used when saving the cache)'
+        required: true
+      cache-path:
+        description: 'Path where the cache should be restored (same as in your cache step)'
+        required: true
+        default: 'cache'
+
+jobs:
+  dump-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Optional, but nice if your cache path is inside the repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .cache
+          key: ${{ github.event.inputs.cache-key }}
+
+      - name: Show restored files
+        run: |
+          echo "Listing files under: .cache"
+          ls -R ".cache" || echo "No files found."
+
+      - name: Upload cache as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-${{ github.event.inputs.cache-key }}
+          path: |
+            .cache
+          if-no-files-found: error
