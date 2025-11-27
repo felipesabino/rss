@@ -49,6 +49,30 @@ Default `DATABASE_URL` in `.env.example` matches the Docker service.
 
 ## Usage
 
+### Run the generator
+
+```bash
+# ensure dependencies are installed and DB is up
+docker-compose up -d db
+npm install
+
+# run the full pipeline (writes to dist/<userSlug>/)
+npm run build
+
+# preview the generated static site locally
+npm run preview
+```
+
+### Run the dashboard (Next.js App Router)
+
+```bash
+cd apps/dashboard
+npm install
+npm run dev
+```
+
+The dashboard uses the shared Prisma client in `packages/db` and the same `DATABASE_URL` from the root `.env`. Make sure Postgres is running before starting the dev server.
+
 Pipeline (DB default):
 
 ```bash

@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @db.Text
+  slug        String   @unique @db.Text
+  email       String?  @db.Text
+  displayName String?  @map("display_name") @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  sourceConfigs      SourceConfig[]
+  pipelineRuns       PipelineRun[]
+  feedItems          FeedItem[]
+  extractedContents  ExtractedContent[]
+  processedContents  ProcessedContent[]
+  aiAnalyses         AiAnalysis[]
+  reports            Report[]
+  reportItems        ReportItem[]
+  savedItems         SavedItem[]
+  retentionAuditLogs RetentionAuditLog[]
+  scoringAudits      ScoringAudit[]
+
+  @@map("users")
+}
+
+model SourceConfig {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Text @map("user_id")
+  type          String   @db.Text
+  name          String   @db.Text
+  url           String?  @db.Text
+  query         String?  @db.Text
+  categories    String[] @db.Text @default([])
+  language      String?  @db.Text
+  isActive      Boolean  @default(true) @map("is_active")
+  lastFetchedAt DateTime? @db.Timestamptz(6) @map("last_fetched_at")
+  createdAt     DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedItems FeedItem[]
+
+  @@unique([userId, type, url, query], map: "source_configs_user_type_url_query_idx")
+  @@map("source_configs")
+}
+
+model PipelineRun {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Text @map("user_id")
+  startedAt     DateTime  @default(now()) @db.Timestamptz(6) @map("started_at")
+  completedAt   DateTime? @db.Timestamptz(6) @map("completed_at")
+  status        String    @default("running") @db.Text
+  stepCompleted Int?      @map("step_completed")
+  error         Json?
+  notes         String?   @db.Text
+
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedItems           FeedItem[]
+  extractedContents   ExtractedContent[]
+  processedContents   ProcessedContent[]
+  aiAnalyses          AiAnalysis[]
+  reports             Report[]
+  scoringAudits       ScoringAudit[]
+
+  @@index([userId], map: "pipeline_runs_user_idx")
+  @@map("pipeline_runs")
+}
+
+model FeedItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Text @map("user_id")
+  sourceConfigId String    @db.Uuid @map("source_config_id")
+  pipelineRunId  String?   @db.Uuid @map("pipeline_run_id")
+  externalId     String?   @map("external_id") @db.Text
+  title          String    @db.Text
+  url            String    @db.Text
+  publishedAt    DateTime? @db.Timestamptz(6) @map("published_at")
+  rawFeed        Json?     @map("raw_feed")
+  siteName       String?   @map("site_name") @db.Text
+  commentsUrl    String?   @map("comments_url") @db.Text
+  expiresAt      DateTime? @db.Timestamptz(6) @map("expires_at")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceConfig       SourceConfig     @relation(fields: [sourceConfigId], references: [id], onDelete: Cascade)
+  pipelineRun        PipelineRun?     @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+  extractedContents  ExtractedContent[]
+  processedContents  ProcessedContent[]
+  aiAnalyses         AiAnalysis[]
+  reportItems        ReportItem[]
+  savedItems         SavedItem[]
+
+  @@index([userId, createdAt], map: "feed_items_user_created_idx")
+  @@index([userId, publishedAt], map: "feed_items_user_published_idx")
+  @@unique([userId, sourceConfigId, url], map: "feed_items_user_source_url_idx")
+  @@map("feed_items")
+}
+
+model ExtractedContent {
+  id           String    @id @default(uuid()) @db.Uuid
+  feedItemId   String    @db.Uuid @map("feed_item_id")
+  userId       String    @db.Text @map("user_id")
+  pipelineRunId String?  @db.Uuid @map("pipeline_run_id")
+  content      String    @db.Text
+  publishedAt  DateTime? @db.Timestamptz(6) @map("published_at")
+  commentsUrl  String?   @map("comments_url") @db.Text
+  expiresAt    DateTime? @db.Timestamptz(6) @map("expires_at")
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  feedItem    FeedItem     @relation(fields: [feedItemId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+
+  @@index([feedItemId], map: "extracted_contents_feed_item_idx")
+  @@index([userId, feedItemId], map: "extracted_contents_user_feed_idx")
+  @@map("extracted_contents")
+}
+
+model ProcessedContent {
+  id            String    @id @default(uuid()) @db.Uuid
+  feedItemId    String    @db.Uuid @map("feed_item_id")
+  userId        String    @db.Text @map("user_id")
+  pipelineRunId String?   @db.Uuid @map("pipeline_run_id")
+  mediaType     String    @map("media_type") @db.Text
+  mediaUrl      String?   @map("media_url") @db.Text
+  shouldSkipAi  Boolean   @default(false) @map("should_skip_ai")
+  normalizedUrl String?   @map("normalized_url") @db.Text
+  expiresAt     DateTime? @db.Timestamptz(6) @map("expires_at")
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  feedItem    FeedItem     @relation(fields: [feedItemId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+
+  @@index([feedItemId], map: "processed_contents_feed_item_idx")
+  @@index([userId, feedItemId], map: "processed_contents_user_feed_idx")
+  @@map("processed_contents")
+}
+
+model AiAnalysis {
+  id             String    @id @default(uuid()) @db.Uuid
+  feedItemId     String    @db.Uuid @map("feed_item_id")
+  userId         String    @db.Text @map("user_id")
+  pipelineRunId  String?   @db.Uuid @map("pipeline_run_id")
+  summary        String?   @db.Text
+  hasSummary     Boolean   @default(false) @map("has_summary")
+  isPositive     Boolean   @default(false) @map("is_positive")
+  sentimentScore Decimal?  @map("sentiment_score") @db.Decimal(5, 2)
+  model          String?   @db.Text
+  expiresAt      DateTime? @db.Timestamptz(6) @map("expires_at")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  feedItem    FeedItem     @relation(fields: [feedItemId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+
+  @@index([feedItemId], map: "ai_analyses_feed_item_idx")
+  @@index([userId, feedItemId], map: "ai_analyses_user_feed_idx")
+  @@map("ai_analyses")
+}
+
+model Report {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Text @map("user_id")
+  pipelineRunId String?  @db.Uuid @map("pipeline_run_id")
+  category     String    @db.Text
+  header       String?   @db.Text
+  generatedAt  DateTime  @default(now()) @db.Timestamptz(6) @map("generated_at")
+  expiresAt    DateTime? @db.Timestamptz(6) @map("expires_at")
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+  items       ReportItem[]
+
+  @@index([userId, createdAt], map: "reports_user_created_idx")
+  @@index([userId, generatedAt], map: "reports_user_generated_idx")
+  @@map("reports")
+}
+
+model ReportItem {
+  id              String    @id @default(uuid()) @db.Uuid
+  reportId        String    @db.Uuid @map("report_id")
+  feedItemId      String?   @db.Uuid @map("feed_item_id")
+  userId          String    @db.Text @map("user_id")
+  sectionTag      String?   @map("section_tag") @db.Text
+  headline        String    @db.Text
+  sourceName      String?   @map("source_name") @db.Text
+  sourceUrl       String?   @map("source_url") @db.Text
+  summary         String?   @db.Text
+  sentiment       String?   @db.Text
+  score           Decimal?  @db.Decimal(10, 2)
+  shortTermImpact String?   @map("short_term_impact") @db.Text
+  longTermImpact  String?   @map("long_term_impact") @db.Text
+  expiresAt       DateTime? @db.Timestamptz(6) @map("expires_at")
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  report     Report      @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  feedItem   FeedItem?   @relation(fields: [feedItemId], references: [id], onDelete: SetNull)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reportId], map: "report_items_report_idx")
+  @@index([feedItemId], map: "report_items_feed_item_idx")
+  @@map("report_items")
+}
+
+model SavedItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Text @map("user_id")
+  feedItemId  String   @db.Uuid @map("feed_item_id")
+  savedSummary String? @map("saved_summary") @db.Text
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedItem FeedItem @relation(fields: [feedItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feedItemId], map: "saved_items_user_feed_item_idx")
+  @@map("saved_items")
+}
+
+model RetentionAuditLog {
+  id                    String    @id @default(uuid()) @db.Uuid
+  tableName             String    @map("table_name") @db.Text
+  userId                String?   @db.Text @map("user_id")
+  deletedCount          Int?      @map("deleted_count")
+  retentionWindowMonths Int?      @map("retention_window_months")
+  ranAt                 DateTime  @default(now()) @db.Timestamptz(6) @map("ran_at")
+  notes                 String?   @db.Text
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("retention_audit_logs")
+}
+
+model ScoringAudit {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Text @map("user_id")
+  pipelineRunId      String?   @db.Uuid @map("pipeline_run_id")
+  label              String    @db.Text
+  customInstructions String?   @map("custom_instructions") @db.Text
+  selectedItems      Json?     @map("selected_items")
+  scoredItems        Json?     @map("scored_items")
+  topKPerSource      Int?      @map("top_k_per_source")
+  scoredAt           DateTime  @default(now()) @db.Timestamptz(6) @map("scored_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+
+  @@map("scoring_audits")
+}
