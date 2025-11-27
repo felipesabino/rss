@@ -113,6 +113,7 @@ export interface PipelineStore {
 
   markStepCompleted?(step: number): Promise<void>;
   finalizeRun?(status: 'succeeded' | 'failed'): Promise<void>;
+  getPipelineRunId?(): Promise<string | undefined>;
   getUserId?(): string;
 }
 
@@ -232,6 +233,10 @@ export class FilePipelineStore implements PipelineStore {
 
   async finalizeRun(): Promise<void> {
     return;
+  }
+
+  async getPipelineRunId(): Promise<string | undefined> {
+    return undefined;
   }
 
   getUserId(): string {
@@ -978,6 +983,13 @@ export class DbPipelineStore implements PipelineStore {
       .orderBy(desc(pipelineRuns.startedAt))
       .limit(1);
     return rows[0]?.id;
+  }
+
+  async getPipelineRunId(): Promise<string | undefined> {
+    if (this.pipelineRunId) {
+      return this.pipelineRunId;
+    }
+    return this.getLatestRunId();
   }
 
   private async fetchFeedItemIds(urls: string[]): Promise<Map<string, string>> {

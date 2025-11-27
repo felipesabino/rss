@@ -25,6 +25,60 @@
             timeZone: 'UTC' }) %> (UTC).</p>
     </div>
 
+    <% if (previousReports && previousReports.length) { %>
+      <div class="previous-reports">
+        <h3>Previous reports</h3>
+        <ul class="previous-reports-list">
+          <% previousReports.forEach(function(history) { %>
+            <li>
+              <a href="<%= history.path %>">
+                <span class="previous-report-category"><%= history.category %></span>
+                <span class="previous-report-date"><%= formatDate(new Date(history.generatedAt)) %></span>
+              </a>
+              <% if (history.isLatest) { %>
+                <span class="report-badge">latest</span>
+              <% } %>
+            </li>
+          <% }); %>
+        </ul>
+      </div>
+    <% } %>
+
+    <% if (savedItems && savedItems.length) { %>
+      <div class="saved-items">
+        <div class="saved-items-header">
+          <h3>Saved items</h3>
+          <span class="saved-count"><%= savedItems.length %></span>
+        </div>
+        <ul class="saved-items-list">
+          <% savedItems.forEach(function(item) { %>
+            <li>
+              <div class="saved-item-title">
+                <% const linkTarget = item.url || '#'; %>
+                <% if (item.url) { %>
+                  <a href="<%= linkTarget %>" target="_blank" rel="noopener noreferrer"><%= item.title || item.url %></a>
+                <% } else { %>
+                  <span><%= item.title || item.feedItemId %></span>
+                <% } %>
+              </div>
+              <div class="saved-item-meta">
+                <% if (item.publishedAt) { %>
+                  <span class="saved-meta-chip">Published <%= formatDate(new Date(item.publishedAt)) %></span>
+                <% } %>
+                <span class="saved-meta-chip">Saved <%= formatDate(new Date(item.savedAt)) %></span>
+              </div>
+              <% if (item.savedSummary) { %>
+                <p class="saved-item-summary"><%= item.savedSummary %></p>
+              <% } %>
+              <% if (item.notes) { %>
+                <p class="saved-item-notes">Notes: <%= item.notes %></p>
+              <% } %>
+            </li>
+          <% }); %>
+        </ul>
+      </div>
+    <% } %>
+
     <div class="category-filter">
       <ul class="category-list">
         <li class="category-item all active" data-category="all">All</li>

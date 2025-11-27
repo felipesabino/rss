@@ -95,11 +95,13 @@ export const feedItems = pgTable(
     rawFeed: jsonb('raw_feed'),
     siteName: text('site_name'),
     commentsUrl: text('comments_url'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
   table => ({
     userCreatedIdx: index('feed_items_user_created_idx').on(table.userId, table.createdAt),
+    userPublishedIdx: index('feed_items_user_published_idx').on(table.userId, table.publishedAt),
     urlDedupe: uniqueIndex('feed_items_user_source_url_idx').on(
       table.userId,
       table.sourceConfigId,
@@ -124,11 +126,13 @@ export const extractedContents = pgTable(
     content: text('content').notNull(),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     commentsUrl: text('comments_url'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
   table => ({
-    feedItemIdx: index('extracted_contents_feed_item_idx').on(table.feedItemId)
+    feedItemIdx: index('extracted_contents_feed_item_idx').on(table.feedItemId),
+    userFeedIdx: index('extracted_contents_user_feed_idx').on(table.userId, table.feedItemId)
   })
 );
 
@@ -149,11 +153,13 @@ export const processedContents = pgTable(
     mediaUrl: text('media_url'),
     shouldSkipAI: boolean('should_skip_ai').notNull().default(false),
     normalizedUrl: text('normalized_url'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
   table => ({
-    feedItemIdx: index('processed_contents_feed_item_idx').on(table.feedItemId)
+    feedItemIdx: index('processed_contents_feed_item_idx').on(table.feedItemId),
+    userFeedIdx: index('processed_contents_user_feed_idx').on(table.userId, table.feedItemId)
   })
 );
 
@@ -175,11 +181,13 @@ export const aiAnalyses = pgTable(
     isPositive: boolean('is_positive').notNull().default(false),
     sentimentScore: numeric('sentiment_score', { precision: 5, scale: 2 }),
     model: text('model'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
   table => ({
-    feedItemIdx: index('ai_analyses_feed_item_idx').on(table.feedItemId)
+    feedItemIdx: index('ai_analyses_feed_item_idx').on(table.feedItemId),
+    userFeedIdx: index('ai_analyses_user_feed_idx').on(table.userId, table.feedItemId)
   })
 );
 
@@ -196,10 +204,13 @@ export const reports = pgTable(
     category: text('category').notNull(),
     header: text('header'),
     generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
   table => ({
-    userCreatedIdx: index('reports_user_created_idx').on(table.userId, table.createdAt)
+    userCreatedIdx: index('reports_user_created_idx').on(table.userId, table.createdAt),
+    userGeneratedIdx: index('reports_user_generated_idx').on(table.userId, table.generatedAt)
   })
 );
 
@@ -223,10 +234,13 @@ export const reportItems = pgTable(
     score: numeric('score', { precision: 10, scale: 2 }),
     shortTermImpact: text('short_term_impact'),
     longTermImpact: text('long_term_impact'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
   table => ({
-    reportIdx: index('report_items_report_idx').on(table.reportId)
+    reportIdx: index('report_items_report_idx').on(table.reportId),
+    reportItemFeedIdx: index('report_items_feed_item_idx').on(table.feedItemId)
   })
 );
 

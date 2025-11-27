@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title><%= report.category %> report</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-top">
+        <h1><%= report.category %> report</h1>
+        <a class="back-link" href="../index.html">← Back to latest</a>
+      </div>
+      <p class="updated-at">
+        Generated <%= formatDate(new Date(report.generatedAt)) %>
+      </p>
+      <% if (report.report.header) { %>
+        <p class="report-intro">
+          <%= report.report.header %>
+        </p>
+      <% } %>
+    </div>
+
+    <div class="report-section-wrapper">
+      <div class="report-container">
+        <div class="category-report">
+          <div class="report-content">
+            <div class="report-section">
+              <h3>Main Stories</h3>
+              <% (report.report.mainStories || []).forEach(function(story) { %>
+                <div class="story-item">
+                  <div class="story-tag">
+                    <%= story.sectionTag %>
+                  </div>
+                  <h4>
+                    <% if (story.sourceUrl) { %>
+                      <a href="<%= story.sourceUrl %>" target="_blank" rel="noopener noreferrer">
+                        <%= story.headline %>
+                      </a>
+                    <% } else { %>
+                      <%= story.headline %>
+                    <% } %>
+                  </h4>
+                  <div class="story-source">Source: <%= story.sourceName %></div>
+
+                  <div class="story-details">
+                    <p><strong>What Happened:</strong>
+                      <%= story.whatHappened %>
+                    </p>
+                    <p><strong>Why It Matters:</strong>
+                      <%= story.whyItMatters %>
+                    </p>
+                    <div class="impact-section">
+                      <p><strong>Short-Term:</strong>
+                        <%= story.shortTermImpact %>
+                      </p>
+                      <p><strong>Long-Term:</strong>
+                        <%= story.longTermImpact %>
+                      </p>
+                    </div>
+                    <div class="story-sentiment <%= story.sentiment.toLowerCase() %>">
+                      <strong>Sentiment:</strong>
+                      <%= story.sentiment %> - <%= story.sentimentRationale %>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+
+            <div class="report-section">
+              <h3>What Else Is Going On</h3>
+              <ul class="what-else-list">
+                <% (report.report.whatElseIsGoingOn || []).forEach(function(item) { %>
+                  <li>
+                    <%= item.text %>
+                    <% if (item.sourceUrl) { %>
+                      <span class="source-link">(<a href="<%= item.sourceUrl %>" target="_blank" rel="noopener noreferrer">
+                        <%= item.sourceName %>
+                      </a>)</span>
+                    <% } else if (item.sourceName) { %>
+                      <span class="source-link"><%= item.sourceName %></span>
+                    <% } %>
+                  </li>
+                <% }); %>
+              </ul>
+            </div>
+
+            <% if (report.report.byTheNumbers) { %>
+              <div class="report-section by-the-numbers">
+                <h3>By The Numbers</h3>
+                <div class="number-display">
+                  <span class="big-number">
+                    <%= report.report.byTheNumbers.number %>
+                  </span>
+                  <span class="number-commentary">
+                    <%= report.report.byTheNumbers.commentary %>
+                  </span>
+                </div>
+              </div>
+            <% } %>
+
+            <% if (report.report.signOff) { %>
+              <div class="report-footer">
+                <p class="sign-off">
+                  <%= report.report.signOff %>
+                </p>
+              </div>
+            <% } %>
+          </div>
+          <div class="report-meta">
+            Generated at <%= formatDate(new Date(report.generatedAt)) %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p class="source-code"><span>&lt;&gt;</span> <a href="https://github.com/felipesabino/rss" target="_blank"
+          rel="noopener noreferrer">source code at GitHub</a></p>
+    </div>
+  </div>
+</body>
+
+</html>

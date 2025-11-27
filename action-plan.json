@@ -53,7 +53,7 @@
     ],
     "verification": [
       "docs/data-model.md exists.",
-      "docs/data-model.md contains a clear mapping from each pipeline step (1\u20135) output to concrete tables/fields.",
+      "docs/data-model.md contains a clear mapping from each pipeline step (1–5) output to concrete tables/fields.",
       "All required entities are present: User, SourceConfig, PipelineRun, FeedItem, ExtractedContent, ProcessedContent, AIAnalysis, Report, ReportItem, SavedItem (and optional RetentionAuditLog).",
       "The ERD shows relationships that allow reconstructing a report and its items from DB alone.",
       "Retention rules describe how data older than a configured window is deleted without removing SavedItem-related data."
@@ -117,7 +117,7 @@
       }
     ],
     "verification": [
-      "docs/database-choice.md exists and explains why the chosen DB and ORM fit the project\u2019s multi-tenant pipeline use case.",
+      "docs/database-choice.md exists and explains why the chosen DB and ORM fit the project’s multi-tenant pipeline use case.",
       "docker-compose.yml defines a database service with the selected engine.",
       ".env.example contains a DATABASE_URL placeholder with the correct syntax for the chosen DB.",
       "Running `docker-compose up -d` starts the DB container successfully (no crash loops)."
@@ -233,7 +233,7 @@
   {
     "id": "task-6-pipeline-store-abstraction",
     "title": "Introduce PipelineStore abstraction for pipeline steps",
-    "description": "Create a unified PipelineStore abstraction layer that hides how intermediate pipeline data is stored. Initially, implement a FilePipelineStore that preserves the current behavior of reading/writing JSON files in the .cache directory. Refactor all pipeline steps (1\u20135) to depend on PipelineStore instead of directly accessing the filesystem.",
+    "description": "Create a unified PipelineStore abstraction layer that hides how intermediate pipeline data is stored. Initially, implement a FilePipelineStore that preserves the current behavior of reading/writing JSON files in the .cache directory. Refactor all pipeline steps (1–5) to depend on PipelineStore instead of directly accessing the filesystem.",
     "context": {
       "project_goal": "Prepare the codebase to switch from file-based JSON cache to database-backed storage without changing pipeline logic. This is a structural refactor that maintains existing behavior but makes later DB integration trivial.",
       "current_behavior": [
@@ -288,9 +288,9 @@
       }
     ],
     "verification": [
-      "pipeline-store.ts defines a PipelineStore interface with save/load methods for each step (Step1\u2013Step5, scoring/audit, etc.).",
+      "pipeline-store.ts defines a PipelineStore interface with save/load methods for each step (Step1–Step5, scoring/audit, etc.).",
       "A FilePipelineStore implementation exists that reads/writes the same .cache JSON files as before.",
-      "All step files (1\u20135) no longer import or directly manipulate .cache files; they use PipelineStore instead.",
+      "All step files (1–5) no longer import or directly manipulate .cache files; they use PipelineStore instead.",
       "Running `npm run build` produces dist/index.html identical (or near-identical) to the baseline captured in docs/baseline.md.",
       "All existing tests related to the pipeline still pass."
     ],
@@ -299,7 +299,7 @@
   {
     "id": "task-7-db-pipeline-store",
     "title": "Implement DbPipelineStore and map pipeline data into DB schema",
-    "description": "Create a DbPipelineStore implementation of the PipelineStore interface that persists pipeline outputs (Step1\u2013Step5) into the normalized database schema defined earlier. Ensure that every pipeline stage can round-trip data correctly via DB reads/writes.",
+    "description": "Create a DbPipelineStore implementation of the PipelineStore interface that persists pipeline outputs (Step1–Step5) into the normalized database schema defined earlier. Ensure that every pipeline stage can round-trip data correctly via DB reads/writes.",
     "context": {
       "project_goal": "Enable the pipeline to persist intermediate and final data into the relational database for multi-tenant support, auditing, and retention.",
       "requirements": [
@@ -551,7 +551,7 @@
     "verification": [
       "When multiple users exist in the User table, running with --all-users triggers separate PipelineRun entries per user.",
       "Each user gets their own FeedItem/Report data populated for the current run.",
-      "No user\u2019s data leaks into another user\u2019s run (e.g., FeedItems are not associated with the wrong userId).",
+      "No user’s data leaks into another user’s run (e.g., FeedItems are not associated with the wrong userId).",
       "docs/scheduling.md explains how to run this regularly via cron or CI."
     ],
     "status": "completed"
@@ -631,7 +631,7 @@
       "The content shown in the generated HTML matches what is stored in the latest Report and ReportItem rows in the DB.",
       "If the pipeline is rerun, Step6 updates the latest HTML accordingly."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-14-historical-report-html",
@@ -672,7 +672,7 @@
       "Each historical page displays the content corresponding to the specific Report row in the DB.",
       "Links work correctly when opening the static files in a browser."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-15-add-retention-metadata",
@@ -723,7 +723,7 @@
       "Newly created rows in those tables automatically receive createdAt values.",
       ".env.example documents RETENTION_MONTHS with a default or placeholder value."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-16-retention-cleanup-script",
@@ -768,7 +768,7 @@
       "No foreign key constraint errors occur during deletion.",
       "docs/retention.md explains how and when to run this script in production (e.g., via cron)."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-17-add-indexes",
@@ -805,7 +805,7 @@
       "Explain plans for key queries (e.g., fetching latest Report per user) show index usage.",
       "No regressions or failures during normal pipeline runs after adding indexes."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-18-saved-items-persistence",
@@ -852,7 +852,7 @@
       "Running the retention cleanup script does not delete the FeedItem or related ReportItem/Report rows for saved items.",
       "When re-running Step6, saved items are still present and associated with the correct user."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-19-display-saved-items-and-history",
@@ -894,7 +894,7 @@
       "Clicking on saved item links and previous report links in a browser opens the correct content.",
       "The page remains valid HTML and visually consistent with the existing design."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-20-admin-config-interface",
@@ -951,6 +951,6 @@
       "Running the pipeline with --user-id for the new user successfully processes their sources and generates HTML.",
       "docs/admin-api.md provides clear usage instructions for these operations."
     ],
-    "status": "pending"
+    "status": "completed"
   }
 ]

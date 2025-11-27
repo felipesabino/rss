@@ -4,83 +4,99 @@ A static site generator for RSS feeds, inspired by Brutalist Report aesthetics.
 
 ## Overview
 
-This project generates a static site from RSS feeds, resulting in a lightweight UI that loads quickly with minimal dependencies. The static site is generated when feed contents are updated.
+Multi-tenant static generator that ingests RSS and Google Custom Search, runs a six-step pipeline (with OpenAI summarization), and writes per-user static HTML under `dist/<userSlug>/`. Data is database-backed by default (Postgres via Drizzle), with a file-store fallback for debugging.
 
 ## Features
 
-- Static site generation from RSS feeds
-- Brutalist aesthetic design
-- OpenAI integration for content summarization
-- Configurable feeds
-- Fast loading times with minimal client-side dependencies
+- DB-backed pipeline store (Postgres + Drizzle), optional legacy `.cache` file store
+- Brutalist EJS frontend with per-user pages and historical report pages
+- OpenAI-compatible summarization/scoring (works with Ollama-compatible endpoints)
+- Saved items preserved across retention cleanup
+- Admin CLI to manage users and sources
+- Docker Compose for local Postgres
 
 ## Project Structure
 
-- `config/` - Configuration files for feeds
-- `static-generator/` - Code for generating the static site
-  - `services/` - Service modules for RSS, content, and OpenAI integration
-  - `steps/` - Modular implementation of the RSS processing pipeline
-  - `templates/` - EJS templates and CSS for the static site
-- `.github/workflows/` - GitHub Actions workflows for deployment
+- `static-generator/` – pipeline steps, services, templates
+- `drizzle/schema.ts` – DB schema; `migrations/` – SQL migrations
+- `scripts/` – DB utilities, seeding, retention cleanup, admin and saved-item CLIs
+- `docs/` – data model, output structure, retention, admin API, scheduling
 
 ## Dependencies
 
-Main dependencies:
-- `cheerio` - HTML parsing and manipulation
-- `dotenv` - Environment variable management
-- `ejs` - Templating engine
-- `got` - HTTP client
-- `openai` - OpenAI API client
-- `react` - UI component library
-- `rss-parser` - RSS feed parsing
-- `ws` - WebSocket implementation
-- `zod` - Schema validation
-
-Dev dependencies:
-- `tsx` - TypeScript execution
-- `typescript` - TypeScript language support
-- `vite` - Build tool and development server
+- Runtime: Node 18+, Postgres (local via Docker Compose)
+- Key libs: drizzle-orm, pg, ejs, rss-parser, openai-compatible client, tsx, vitest
 
 ## Installation
 
 ```bash
-# Clone the repository
-git clone [repository-url]
-cd [repository-directory]
-
-# Install dependencies
+git clone <repo>
+cd <repo>
 npm install
 
-# Create .env file from example
 cp .env.example .env
-# Edit .env with your own values
+# set DATABASE_URL, OPENAI_* as needed
 ```
+
+### Local Postgres via Docker
+
+```bash
+docker-compose up -d db
+npm run db:migrate
+```
+
+Default `DATABASE_URL` in `.env.example` matches the Docker service.
 
 ## Usage
 
-Available npm commands:
+Pipeline (DB default):
 
 ```bash
-# Start the development server
-npm run dev
-
-# Build the static site (run all steps)
+# Run all steps for default user
 npm run build
 
-# Run individual steps of the build process
-npm run step1  # Fetch RSS feeds
-npm run step2  # Extract content
-npm run step3  # Process content
-npm run step4  # Process with OpenAI
-npm run step5  # Generate HTML
+# Explicit user
+node static-generator/generator.js --all --user-id demo
 
-# Preview the built static site
-npm run preview
+# All active users (DB only)
+node static-generator/generator.js --all --all-users
+
+# Per-step
+npm run step1  # --step1
+npm run step2  # --step2
+npm run step3  # --step3
+npm run step4  # --step4
+npm run step5  # --step5
+npm run step6  # --step6 (requires DB store)
+
+# File-store fallback
+PIPELINE_STORE=file npm run build
+# or
+node static-generator/generator.js --all --use-file-store
 ```
 
-### Storage Backend Selection
-- Default: database-backed store using `DATABASE_URL`.
-- Override to file store (legacy .cache JSON) with `PIPELINE_STORE=file` or `--use-file-store` flag.
+Admin & utilities:
+
+```bash
+# Upsert user
+npx tsx scripts/admin-user-cli.ts user create --id demo --slug demo --email demo@example.com
+# List users
+npx tsx scripts/admin-user-cli.ts user list
+# Add a source (rss or google)
+npx tsx scripts/admin-user-cli.ts source add --user-id demo --type rss --name "Example" --url https://example.com/rss --categories tech
+# List sources
+npx tsx scripts/admin-user-cli.ts source list --user-id demo
+# Save an item
+npx tsx scripts/save-item-cli.ts --user-id demo --feed-item-id <feed_item_uuid> [--summary "..."] [--notes "..."]
+# Retention cleanup (honors saved items)
+npx tsx scripts/cleanup-retention.ts
+```
+
+Preview the built static site:
+
+```bash
+npm run preview
+```
 
 ## Environment Variables
 
@@ -107,35 +123,23 @@ DEFAULT_USER_ID=default
 
 ### OpenAI API Configuration
 
-```
-OPENAI_API_KEY=your-api-key
-OPENAI_API_BASE_URL=http://your-custom-endpoint:port/v1 (optional)
-OPENAI_MODEL_NAME=gpt-3.5-turbo (optional)
-```
-
-If `OPENAI_API_BASE_URL` is not provided, the application will use the default OpenAI API endpoint.
+- `OPENAI_API_KEY`, `OPENAI_API_BASE_URL`, `OPENAI_MODEL_NAME`, `OPENAI_SENTIMENT_MODEL_NAME`, `OPENAI_REPORT_MODEL_NAME`
+- Works with Ollama-compatible endpoints by pointing `OPENAI_API_BASE_URL` accordingly.
 
 ### Feed Configuration
 
-```
-MAX_ITEMS_PER_FEED=10 (optional, defaults to 10)
-```
-
-This variable controls how many items are fetched from each RSS feed.
+- `MAX_ITEMS_PER_FEED` limits per-feed fetch.
 
 ### Database Requirements
-- A Postgres instance reachable at `DATABASE_URL` (Docker compose provided: `docker-compose up -d db`).
-- Run migrations before the pipeline: `npm run db:migrate`.
-- Default credentials in `.env.example` point to the local Docker service.
 
-### PIPELINE_STORE configuration
-- `PIPELINE_STORE=db` (default) uses Postgres via `DbPipelineStore`.
-- `PIPELINE_STORE=file` keeps legacy `.cache` JSON behavior (or use CLI `--use-file-store`).
-- `DEFAULT_USER_ID` sets which user the DB store associates with runs (defaults to `default`).
+- Postgres at `DATABASE_URL`; run `npm run db:migrate` before the pipeline.
+- `PIPELINE_STORE=db` (default) uses Postgres. `PIPELINE_STORE=file` falls back to `.cache`.
+- `DEFAULT_USER_ID` sets default user for single-user runs.
+- `RETENTION_MONTHS` controls cleanup window; `scripts/cleanup-retention.ts` honors saved items.
 
 ### Using File Store for Debugging
-- Run with `PIPELINE_STORE=file npm run build` or `npm run build -- --use-file-store`.
-- This bypasses the database and writes/reads `.cache/*.json` as before.
+
+- `PIPELINE_STORE=file npm run build` or `node static-generator/generator.js --all --use-file-store`.
 
 ## GitHub Actions
 
@@ -162,38 +166,16 @@ The project can use Ollama as a drop-in replacement for the OpenAI API in GitHub
 - Configurable to use different models
 - Reduces dependency on external API services
 
-## How It Works
+## How It Works (Pipeline)
 
-The static site generation process is divided into five distinct steps, each with its own cache file:
+1. Fetch sources (RSS + Google) → Feed items in DB (`feed_items`).
+2. Extract article content → `extracted_contents`.
+3. Process content (media detection/skip logic) → `processed_contents`.
+4. AI summarize/score → `ai_analyses`.
+5. Generate category reports → `reports` + `report_items`.
+6. Generate HTML per user → `dist/<userSlug>/index.html` plus history pages under `dist/<userSlug>/reports/`.
 
-1. **Step 1: Fetch Feeds**
-   - Fetches content from configured RSS feeds
-   - Saves raw feed data to `.cache/step1-raw-feeds.json`
-
-2. **Step 2: Extract Content**
-   - Loads the raw feed data from Step 1
-   - Extracts content from URLs
-   - Saves extracted content to `.cache/step2-extracted-content.json`
-
-3. **Step 3: Process Content**
-   - Loads the extracted content from Step 2
-   - Processes the content (media type detection, etc.)
-   - Saves processed content to `.cache/step3-processed-content.json`
-
-4. **Step 4: Process with OpenAI**
-   - Loads the processed content from Step 3
-   - Generates summaries using OpenAI
-   - Performs sentiment analysis
-   - Saves AI processed content to `.cache/step4-ai-processed-content.json`
-
-5. **Step 5: Generate HTML**
-   - Loads the AI processed content from Step 4
-   - Uses EJS templates to generate HTML pages
-   - Outputs the static site to the `dist` directory
-
-This modular approach makes it easier to test, debug, and maintain each part of the process independently. See `static-generator/steps/README.md` for more details.
-
-GitHub Actions can be used for automated deployment of the final static site.
+Saved items live in `saved_items` and are excluded from retention cleanup. Retention window is governed by `RETENTION_MONTHS` and optional `expires_at` fields.
 
 ## License
 

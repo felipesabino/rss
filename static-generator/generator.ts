@@ -130,7 +130,10 @@ async function runPipelineForUser(
 
     if (steps.shouldRunStep6) {
       console.log('Running Step 6: Generate static HTML');
-      await generateStaticSite();
+      if (useFileStore) {
+        throw new Error('Step 6 requires the database store. Rerun without --use-file-store or set PIPELINE_STORE=db.');
+      }
+      await generateStaticSite(store, userId);
       await store.markStepCompleted?.(6);
     }
 
