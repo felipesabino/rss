@@ -1,6 +1,4 @@
-import fs from 'fs/promises';
-import path from 'path';
-import type { AIProcessedItem } from '../steps/4-process-with-openai';
+import { AIProcessedItem, FilePipelineStore, PipelineStore, ScoringAuditCache, ScoringAuditRecord } from './pipeline-store';
 
 export interface RankedAIProcessedItem extends AIProcessedItem {
     rankingScore: number; // final blended score 0-100
@@ -126,9 +124,8 @@ export function hasRankingScore(item: AIProcessedItem): item is RankedAIProcesse
 /**
  * Persist the full scoring result so we can audit how the newsletter was built.
  */
-export async function cacheScoringResult(record: ScoringAuditRecord): Promise<void> {
-    const cachePath = getScoringCachePath();
-    const cache = await loadScoringCache();
+export async function cacheScoringResult(record: ScoringAuditRecord, store: PipelineStore = new FilePipelineStore()): Promise<void> {
+    const cache = await store.loadScoringAuditCache();
 
     cache.records.unshift({
         ...record,
@@ -137,57 +134,14 @@ export async function cacheScoringResult(record: ScoringAuditRecord): Promise<vo
     cache.records = cache.records.slice(0, 200); // keep cache bounded
     cache.lastUpdated = Date.now();
 
-    await fs.mkdir(path.dirname(cachePath), { recursive: true });
-    await fs.writeFile(
-        cachePath,
-        JSON.stringify(cache, (key, value) => {
-            if (value instanceof Date) {
-                return value.toISOString();
-            }
-            return value;
-        }, 2),
-        'utf-8'
-    );
+    await store.saveScoringAuditCache(cache);
 }
 
 /**
  * Load the scoring cache. Returns an empty cache if no prior scoring runs exist.
  */
-export async function loadScoringCache(): Promise<ScoringAuditCache> {
-    const cachePath = getScoringCachePath();
-
-    try {
-        const cacheData = await fs.readFile(cachePath, 'utf-8');
-        const rawCache = JSON.parse(cacheData) as ScoringAuditCache;
-
-        return {
-            records: (rawCache.records || []).map(record => ({
-                ...record,
-                scoredItems: record.scoredItems.map(item => ({
-                    ...item,
-                    published: new Date(item.published)
-                })),
-                selectedItems: record.selectedItems.map(item => ({
-                    ...item,
-                    published: new Date(item.published)
-                }))
-            })),
-            lastUpdated: rawCache.lastUpdated || 0
-        };
-    } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-            console.error('Failed to load scoring cache:', error);
-        }
-
-        return {
-            records: [],
-            lastUpdated: 0
-        };
-    }
-}
-
-function getScoringCachePath(): string {
-    return process.env.SCORING_CACHE_PATH || path.join(process.cwd(), '.cache', 'scoring-history.json');
+export async function loadScoringCache(store: PipelineStore = new FilePipelineStore()): Promise<ScoringAuditCache> {
+    return store.loadScoringAuditCache();
 }
 
 /**

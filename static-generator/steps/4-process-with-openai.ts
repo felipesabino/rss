@@ -1,35 +1,20 @@
 import { analyzeItem } from '../services/openai';
-import fs from 'fs/promises';
-import path from 'path';
-import { loadProcessedContentCache, ProcessedContentItem } from './3-process-content';
-import { sources } from '../../config/sources';
-
-// Define the structure for AI processed items
-export interface AIProcessedItem extends ProcessedContentItem {
-  summary?: string;
-  hasSummary: boolean;
-  isPositive?: boolean;
-}
-
-// Define the structure for the AI processed content cache
-interface AIProcessedContentCache {
-  items: AIProcessedItem[];
-  feedMetadata: any;
-  lastUpdated: number;
-}
-
-// Path to the AI processed content cache file
-const AI_PROCESSED_CONTENT_CACHE_PATH = path.join(process.cwd(), '.cache', 'step4-ai-processed-content.json');
+import {
+  AIProcessedContentCache,
+  AIProcessedItem,
+  FilePipelineStore,
+  PipelineStore
+} from '../services/pipeline-store';
 
 /**
  * Process all content items with OpenAI (summarize, analyze sentiment)
  * using the processed content data from Step 3
  */
-export async function processWithOpenAI(): Promise<void> {
+export async function processWithOpenAI(store: PipelineStore = new FilePipelineStore()): Promise<void> {
   console.log('Step 4: Processing content with OpenAI...');
 
   // Load the processed content data from Step 3
-  const processedCache = await loadProcessedContentCache();
+  const processedCache = await store.loadProcessedContentCache();
 
   if (processedCache.lastUpdated === 0) {
     console.error('No processed content data found. Please run Step 3 first.');
@@ -45,23 +30,7 @@ export async function processWithOpenAI(): Promise<void> {
     lastUpdated: Date.now()
   };
 
-  // Create cache directory if it doesn't exist
-  await fs.mkdir(path.dirname(AI_PROCESSED_CONTENT_CACHE_PATH), { recursive: true });
-
-  // Get all feed IDs from both the config and the cache
-  const feedIds = new Set<number>();
-
-  // Add feed IDs from the processed items
-  for (const item of processedCache.items) {
-    feedIds.add(item.feedId);
-  }
-
-  // Add feed IDs from the config
-  for (const source of sources) {
-    feedIds.add(source.id);
-  }
-
-  console.log(`Processing content with OpenAI for ${processedCache.items.length} items from ${feedIds.size} feeds...`);
+  console.log(`Processing content with OpenAI for ${processedCache.items.length} items...`);
 
   // Process each item
   for (const item of processedCache.items) {
@@ -133,19 +102,9 @@ export async function processWithOpenAI(): Promise<void> {
   }
 
   // Save the AI processed content to cache
-  await fs.writeFile(
-    AI_PROCESSED_CONTENT_CACHE_PATH,
-    JSON.stringify(aiProcessedCache, (key, value) => {
-      // Convert Date objects to ISO strings for JSON serialization
-      if (value instanceof Date) {
-        return value.toISOString();
-      }
-      return value;
-    }, 2),
-    'utf-8'
-  );
+  await store.saveAIProcessedContentCache(aiProcessedCache);
 
-  console.log(`Step 4 complete: All content processed with OpenAI and saved to ${AI_PROCESSED_CONTENT_CACHE_PATH}`);
+  console.log('Step 4 complete: All content processed with OpenAI and cached');
   console.log(`Total AI processed items: ${aiProcessedCache.items.length}`);
 }
 
@@ -153,25 +112,8 @@ export async function processWithOpenAI(): Promise<void> {
  * Load the AI processed content from cache
  */
 export async function loadAIProcessedContentCache(): Promise<AIProcessedContentCache> {
-  try {
-    const cacheData = await fs.readFile(AI_PROCESSED_CONTENT_CACHE_PATH, 'utf-8');
-    const parsed = JSON.parse(cacheData) as AIProcessedContentCache;
-
-    // Convert ISO date strings back to Date objects
-    parsed.items = parsed.items.map(item => ({
-      ...item,
-      published: new Date(item.published)
-    }));
-
-    return parsed;
-  } catch (error) {
-    console.error('Failed to load AI processed content cache:', error);
-    return {
-      items: [],
-      feedMetadata: {},
-      lastUpdated: 0
-    };
-  }
+  const store = new FilePipelineStore();
+  return store.loadAIProcessedContentCache();
 }
 
 // Main function to run this step independently

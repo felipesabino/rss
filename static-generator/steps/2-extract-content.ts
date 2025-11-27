@@ -1,42 +1,15 @@
 import { contentExtractor } from '../services/content';
-import fs from 'fs/promises';
-import path from 'path';
 import { parseDate } from '../services/date-parser';
-import { loadRawFeedCache } from './1-fetch-sources';
-import { sources } from '../../config/sources';
-import { FeedItem, FeedMetadata } from '../services/feed-parser';
-
-// Define the structure for extracted content items
-export interface ExtractedItem {
-  id: number;
-  feedId: number;
-  title: string;
-  url: string;
-  content?: string;
-  published: Date;
-  commentsUrl?: string;
-  mediaType?: string;
-  mediaUrl?: string;
-}
-
-// Define the structure for the extracted content cache
-interface ExtractedContentCache {
-  items: ExtractedItem[];
-  feedMetadata: any;
-  lastUpdated: number;
-}
-
-// Path to the extracted content cache file
-const EXTRACTED_CONTENT_CACHE_PATH = path.join(process.cwd(), '.cache', 'step2-extracted-content.json');
+import { FilePipelineStore, PipelineStore, ExtractedItem, ExtractedContentCache } from '../services/pipeline-store';
 
 /**
  * Extract content from all feed items using the raw feed data from Step 1
  */
-export async function extractAllContent(): Promise<void> {
+export async function extractAllContent(store: PipelineStore = new FilePipelineStore()): Promise<void> {
   console.log('Step 2: Extracting content from raw feed data...');
 
   // Load the raw feed data from Step 1
-  const rawFeedCache = await loadRawFeedCache();
+  const rawFeedCache = await store.loadRawFeedCache();
 
   if (rawFeedCache.lastUpdated === 0) {
     console.error('No raw feed data found. Please run Step 1 first.');
@@ -52,27 +25,11 @@ export async function extractAllContent(): Promise<void> {
     lastUpdated: Date.now()
   };
 
-  // Create cache directory if it doesn't exist
-  await fs.mkdir(path.dirname(EXTRACTED_CONTENT_CACHE_PATH), { recursive: true });
-
   // Process each feed
   let itemIdCounter = 1;
 
-  // Get all feed IDs from both the config and the cache
-  const feedIds = new Set<string>();
-
-  // Add feed IDs from the cache
-  for (const feedId in rawFeedCache.items) {
-    feedIds.add(feedId);
-  }
-
-  // Add feed IDs from the config
-  for (const source of sources) {
-    feedIds.add(source.id.toString());
-  }
-
-  // Process each feed ID
-  for (const feedId of Array.from(feedIds)) {
+  // Process each feed ID from the cache
+  for (const feedId of Object.keys(rawFeedCache.items)) {
     // Skip if the feed doesn't exist in the raw feed cache
     if (!(feedId in rawFeedCache.items)) {
       console.log(`Feed ID ${feedId} not found in raw feed cache. Run Step 1 to fetch this feed.`);
@@ -172,19 +129,9 @@ export async function extractAllContent(): Promise<void> {
   }
 
   // Save the extracted content to cache
-  await fs.writeFile(
-    EXTRACTED_CONTENT_CACHE_PATH,
-    JSON.stringify(extractedCache, (key, value) => {
-      // Convert Date objects to ISO strings for JSON serialization
-      if (value instanceof Date) {
-        return value.toISOString();
-      }
-      return value;
-    }, 2),
-    'utf-8'
-  );
+  await store.saveExtractedContentCache(extractedCache);
 
-  console.log(`Step 2 complete: All content extracted and saved to ${EXTRACTED_CONTENT_CACHE_PATH}`);
+  console.log('Step 2 complete: All content extracted and cached');
   console.log(`Total extracted items: ${extractedCache.items.length}`);
 }
 
@@ -192,25 +139,8 @@ export async function extractAllContent(): Promise<void> {
  * Load the extracted content from cache
  */
 export async function loadExtractedContentCache(): Promise<ExtractedContentCache> {
-  try {
-    const cacheData = await fs.readFile(EXTRACTED_CONTENT_CACHE_PATH, 'utf-8');
-    const parsed = JSON.parse(cacheData) as ExtractedContentCache;
-
-    // Convert ISO date strings back to Date objects
-    parsed.items = parsed.items.map(item => ({
-      ...item,
-      published: new Date(item.published)
-    }));
-
-    return parsed;
-  } catch (error) {
-    console.error('Failed to load extracted content cache:', error);
-    return {
-      items: [],
-      feedMetadata: {},
-      lastUpdated: 0
-    };
-  }
+  const store = new FilePipelineStore();
+  return store.loadExtractedContentCache();
 }
 
 // Main function to run this step independently

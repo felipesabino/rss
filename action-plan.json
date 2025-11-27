@@ -58,7 +58,7 @@
       "The ERD shows relationships that allow reconstructing a report and its items from DB alone.",
       "Retention rules describe how data older than a configured window is deleted without removing SavedItem-related data."
     ],
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "id": "task-3-db-choice",
@@ -122,7 +122,7 @@
       ".env.example contains a DATABASE_URL placeholder with the correct syntax for the chosen DB.",
       "Running `docker-compose up -d` starts the DB container successfully (no crash loops)."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-4-init-orm-and-schema",
@@ -186,7 +186,7 @@
       "Inspecting the DB (e.g., via psql or ORM introspection) shows all core tables: User, SourceConfig, PipelineRun, FeedItem, ExtractedContent, ProcessedContent, AIAnalysis, Report, ReportItem, SavedItem.",
       "If a test DB connection script exists, running it confirms a successful connection with no runtime errors."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-5-seed-default-user",
@@ -228,7 +228,7 @@
       "Re-running the script does NOT create duplicate users (idempotent behavior, e.g., via upsert or pre-check).",
       "Querying the DB (e.g., SELECT * FROM User WHERE id='default') returns exactly one row."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-6-pipeline-store-abstraction",
@@ -294,7 +294,7 @@
       "Running `npm run build` produces dist/index.html identical (or near-identical) to the baseline captured in docs/baseline.md.",
       "All existing tests related to the pipeline still pass."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-7-db-pipeline-store",
@@ -350,7 +350,7 @@
       "Foreign key relationships (e.g., FeedItem -> ExtractedContent -> ProcessedContent -> AIAnalysis -> ReportItem) are consistent and valid.",
       "No runtime errors occur during test or manual runs using DbPipelineStore."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-8-switch-default-store-to-db",
@@ -406,7 +406,7 @@
       "dist/index.html and other outputs are still generated correctly under DB-backed runs.",
       "Error handling is clear when DB connection fails (e.g., informative message, non-zero exit code)."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-9-thread-user-id-through-pipeline",
@@ -458,7 +458,7 @@
       "DbPipelineStore writes (FeedItem, ExtractedContent, etc.) are associated with the correct user via foreign keys or inferred via PipelineRun.",
       "No references remain that assume a global/single user without userId context."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-10-sources-to-db",
@@ -507,7 +507,7 @@
       "Running Step1 produces the same logical set of sources as before the migration.",
       "Further modifications to SourceConfig in DB are reflected in subsequent Step1 runs."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-11-multi-user-run-support",
@@ -554,7 +554,7 @@
       "No user\u2019s data leaks into another user\u2019s run (e.g., FeedItems are not associated with the wrong userId).",
       "docs/scheduling.md explains how to run this regularly via cron or CI."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-12-output-structure-design",
@@ -589,7 +589,7 @@
       "The document provides enough detail that Step6 can later be implemented to write HTML files consistently based on this spec.",
       "Examples in the document show how URLs would look for different users and reports."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "task-13-step6-db-backed-rendering",

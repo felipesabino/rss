@@ -139,9 +139,10 @@
 
     <div class="feeds-container">
       <% feeds.forEach(function(feed) { %>
-        <div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
+        <div class="feed" data-categories="<%= (feed.categories || []).map(cat => encodeURIComponent(cat)).join(' ') %>">
           <h3 class="feed-title">
-            <a href="<%= feedMetadata[feed.id]?.siteUrl || feed.url.replace(/\/rss\/?.*$|\.rss$|\/feed\/?.*$|\.xml$/, '/') %>"
+            <% const href = feedMetadata[feed.id]?.siteUrl || feed.siteUrl || feed.url || '#' ; %>
+            <a href="<%= href %>"
               target="_blank" rel="noopener noreferrer" class="feed-title-link">
               <% if (feedMetadata[feed.id]?.iconUrl) { %>
                 <img src="<%= feedMetadata[feed.id].iconUrl %>" alt="<%= feed.name %> icon" class="feed-icon" />

@@ -78,6 +78,10 @@ npm run step5  # Generate HTML
 npm run preview
 ```
 
+### Storage Backend Selection
+- Default: database-backed store using `DATABASE_URL`.
+- Override to file store (legacy .cache JSON) with `PIPELINE_STORE=file` or `--use-file-store` flag.
+
 ## Environment Variables
 
 The project uses environment variables for configuration. Create a `.env` file in the root directory of the project (copy from `.env.example`) and add your values:
@@ -93,6 +97,12 @@ MAX_ITEMS_PER_FEED=10
 
 # Build Configuration
 NODE_ENV=production
+# Database
+DATABASE_URL=postgres://rss:rss@localhost:5432/rss
+# Pipeline store selection (db | file). Default is db.
+PIPELINE_STORE=db
+# Optional default user id for pipeline runs
+DEFAULT_USER_ID=default
 ```
 
 ### OpenAI API Configuration
@@ -112,6 +122,20 @@ MAX_ITEMS_PER_FEED=10 (optional, defaults to 10)
 ```
 
 This variable controls how many items are fetched from each RSS feed.
+
+### Database Requirements
+- A Postgres instance reachable at `DATABASE_URL` (Docker compose provided: `docker-compose up -d db`).
+- Run migrations before the pipeline: `npm run db:migrate`.
+- Default credentials in `.env.example` point to the local Docker service.
+
+### PIPELINE_STORE configuration
+- `PIPELINE_STORE=db` (default) uses Postgres via `DbPipelineStore`.
+- `PIPELINE_STORE=file` keeps legacy `.cache` JSON behavior (or use CLI `--use-file-store`).
+- `DEFAULT_USER_ID` sets which user the DB store associates with runs (defaults to `default`).
+
+### Using File Store for Debugging
+- Run with `PIPELINE_STORE=file npm run build` or `npm run build -- --use-file-store`.
+- This bypasses the database and writes/reads `.cache/*.json` as before.
 
 ## GitHub Actions
 

@@ -1,6 +1,3 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { loadAIProcessedContentCache, AIProcessedItem } from './4-process-with-openai';
 import { generateCategoryReport, ReportItem, Report, REPORT_ITEM_LIMIT } from '../services/openai';
 import {
     cacheScoringResult,
@@ -8,36 +5,24 @@ import {
     scoreItemsForInstructions,
     selectTopRankedItems
 } from '../services/scoring';
-import { sources } from '../../config/sources';
 import { categoryPrompts } from '../../config/category-prompts';
-
-// Define the structure for category reports
-export interface CategoryReport {
-    category: string;
-    report: Report;
-    generatedAt: number;
-    usedItemIds: number[];
-}
-
-// Define the structure for the reports cache
-interface ReportsCache {
-    reports: CategoryReport[];
-    lastUpdated: number;
-}
-
-// Path to the reports cache file
-const REPORTS_CACHE_PATH = path.join(process.cwd(), '.cache', 'step5-reports.json');
+import {
+    CategoryReport,
+    FilePipelineStore,
+    PipelineStore,
+    ReportsCache
+} from '../services/pipeline-store';
 const TOP_K_PER_SOURCE = 3;
 
 /**
  * Generate newsletter-style reports for each category
  * using the AI processed content from Step 4
  */
-export async function generateReports(): Promise<void> {
+export async function generateReports(store: PipelineStore = new FilePipelineStore()): Promise<void> {
     console.log('Step 5: Generating category reports...');
 
     // Load the AI processed content data from Step 4
-    const aiProcessedCache = await loadAIProcessedContentCache();
+    const aiProcessedCache = await store.loadAIProcessedContentCache();
 
     if (aiProcessedCache.lastUpdated === 0) {
         console.error('No AI processed content data found. Please run Step 4 first.');
@@ -47,38 +32,18 @@ export async function generateReports(): Promise<void> {
     console.log(`Loaded AI processed content from cache (last updated: ${new Date(aiProcessedCache.lastUpdated).toLocaleString()})`);
 
     // Initialize the reports cache
-    let reportsCache: ReportsCache = {
-        reports: [],
-        lastUpdated: Date.now()
-    };
-
-    // Try to load existing cache to avoid regenerating reports if not needed
-    try {
-        const existingCacheData = await fs.readFile(REPORTS_CACHE_PATH, 'utf-8');
-        const existingCache = JSON.parse(existingCacheData) as ReportsCache;
-        // We might want to keep existing reports if they are recent enough, 
-        // but for now let's just start fresh or maybe implement incremental updates later.
-        // The user asked for "its own cache rules".
-        // Let's reuse existing reports if they exist, but we need to know if content changed.
-        // For simplicity in this iteration, we'll regenerate. 
-        // Optimization: We could check if the report was generated recently (e.g. last 4 hours)
-        reportsCache.reports = existingCache.reports || [];
-    } catch (error) {
-        // Ignore error if file doesn't exist
-    }
-
-    // Create cache directory if it doesn't exist
-    await fs.mkdir(path.dirname(REPORTS_CACHE_PATH), { recursive: true });
+    let reportsCache: ReportsCache = await store.loadReportsCache();
+    reportsCache.lastUpdated = Date.now();
 
     // Group items by category
     const itemsByCategory = new Map<string, AIProcessedItem[]>();
 
     for (const item of aiProcessedCache.items) {
-        // Find the source for this item
-        const source = sources.find(s => s.id === item.feedId);
+        const metadata = aiProcessedCache.feedMetadata?.[item.feedId];
+        const itemCategories = metadata?.categories || [];
 
-        if (source && source.categories) {
-            for (const category of source.categories) {
+        if (itemCategories.length) {
+            for (const category of itemCategories) {
                 if (!itemsByCategory.has(category)) {
                     itemsByCategory.set(category, []);
                 }
@@ -113,14 +78,17 @@ export async function generateReports(): Promise<void> {
                 return new Date(b.published).getTime() - new Date(a.published).getTime();
             });
 
-            await cacheScoringResult({
-                label: category,
-                customInstructions,
-                scoredItems: scoredItemsForAudit,
-                selectedItems: items,
-                topKPerSource: TOP_K_PER_SOURCE,
-                scoredAt: Date.now()
-            });
+            await cacheScoringResult(
+                {
+                    label: category,
+                    customInstructions,
+                    scoredItems: scoredItemsForAudit,
+                    selectedItems: items,
+                    topKPerSource: TOP_K_PER_SOURCE,
+                    scoredAt: Date.now()
+                },
+                store
+            );
         } else {
             // Default behavior: Sort items by date (newest first)
             items.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
@@ -130,7 +98,7 @@ export async function generateReports(): Promise<void> {
 
         // Convert to ReportItem format
         const reportItems: ReportItem[] = items.map((item, index) => {
-            const source = sources.find(s => s.id === item.feedId);
+            const metadata = aiProcessedCache.feedMetadata?.[item.feedId];
             let score = 100 - index;
 
             if (hasRankingScore(item)) {
@@ -142,7 +110,7 @@ export async function generateReports(): Promise<void> {
                 summary: item.summary,
                 url: item.url,
                 published: new Date(item.published),
-                sourceName: source?.name || 'Unknown Source',
+                sourceName: metadata?.title || 'Unknown Source',
                 score: score > 0 ? score : 0,
                 sourceItemId: item.id
             };
@@ -198,29 +166,17 @@ export async function generateReports(): Promise<void> {
     };
 
     // Save the reports to cache
-    await fs.writeFile(
-        REPORTS_CACHE_PATH,
-        JSON.stringify(reportsCache, null, 2),
-        'utf-8'
-    );
+    await store.saveReportsCache(reportsCache);
 
-    console.log(`Step 5 complete: Reports generated and saved to ${REPORTS_CACHE_PATH}`);
+    console.log('Step 5 complete: Reports generated and cached');
 }
 
 /**
  * Load the reports from cache
  */
 export async function loadReportsCache(): Promise<ReportsCache> {
-    try {
-        const cacheData = await fs.readFile(REPORTS_CACHE_PATH, 'utf-8');
-        return JSON.parse(cacheData) as ReportsCache;
-    } catch (error) {
-        console.error('Failed to load reports cache:', error);
-        return {
-            reports: [],
-            lastUpdated: 0
-        };
-    }
+    const store = new FilePipelineStore();
+    return store.loadReportsCache();
 }
 
 // Main function to run this step independently

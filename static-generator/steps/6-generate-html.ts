@@ -1,9 +1,10 @@
 import fs from 'fs/promises';
 import path from 'path';
 import ejs from 'ejs';
-import { sources, getAllCategories } from '../../config/sources';
 import { loadAIProcessedContentCache, AIProcessedItem } from './4-process-with-openai';
 import { loadReportsCache } from './5-generate-reports';
+import { DbPipelineStore, FilePipelineStore, PipelineStore } from '../services/pipeline-store';
+import { getUserById } from '../services/users';
 
 
 
@@ -13,11 +14,14 @@ const OUTPUT_DIR = path.join(process.cwd(), 'dist');
 /**
  * Generate static HTML site using the AI processed content from Step 4
  */
-export async function generateStaticSite(): Promise<void> {
+export async function generateStaticSite(store?: PipelineStore, userId: string = 'default'): Promise<void> {
   console.log('Step 6: Generating static HTML site...');
 
+  const activeStore = store ?? new DbPipelineStore({ userId });
+  const slug = await resolveSlug(userId, activeStore);
+
   // Load the AI processed content from Step 4
-  const aiProcessedCache = await loadAIProcessedContentCache();
+  const aiProcessedCache = await activeStore.loadAIProcessedContentCache();
 
   if (aiProcessedCache.lastUpdated === 0) {
     console.error('No AI processed content found. Please run Step 4 first.');
@@ -25,35 +29,33 @@ export async function generateStaticSite(): Promise<void> {
   }
 
   // Load the reports from Step 5
-  const reportsCache = await loadReportsCache();
+  const reportsCache = await activeStore.loadReportsCache();
 
   console.log(`Loaded AI processed content from cache (last updated: ${new Date(aiProcessedCache.lastUpdated).toLocaleString()})`);
   console.log(`Loaded ${reportsCache.reports.length} category reports from cache`);
   console.log(`Total items: ${aiProcessedCache.items.length}`);
 
   // Create output directory if it doesn't exist
-  await fs.mkdir(OUTPUT_DIR, { recursive: true });
+  const userOutputDir = path.join(OUTPUT_DIR, slug);
+  await fs.mkdir(userOutputDir, { recursive: true });
 
-  // Get all feed IDs from both the config and the cache
-  const feedIds = new Set<number>();
+  const feedIds = Array.from(new Set(aiProcessedCache.items.map(item => item.feedId)));
+  console.log(`Generating HTML for ${aiProcessedCache.items.length} items from ${feedIds.length} feeds...`);
 
-  // Add feed IDs from the AI processed items
-  for (const item of aiProcessedCache.items) {
-    feedIds.add(item.feedId);
-  }
-
-  // Add feed IDs from the config
-  for (const source of sources) {
-    feedIds.add(source.id);
-  }
-
-  console.log(`Generating HTML for ${aiProcessedCache.items.length} items from ${feedIds.size} feeds...`);
+  // Build feeds list from metadata (fallback to generic names)
+  const feeds = feedIds.map(id => ({
+    id,
+    name: aiProcessedCache.feedMetadata[id]?.title || `Feed ${id}`,
+    categories: aiProcessedCache.feedMetadata[id]?.categories || [],
+    siteUrl: aiProcessedCache.feedMetadata[id]?.siteUrl || '',
+    url: aiProcessedCache.feedMetadata[id]?.siteUrl || ''
+  }));
 
   // Group items by feed
   const itemsByFeed: Record<number, AIProcessedItem[]> = {};
-  for (const source of sources) {
-    itemsByFeed[source.id] = aiProcessedCache.items
-      .filter(item => item.feedId === source.id)
+  for (const id of feedIds) {
+    itemsByFeed[id] = aiProcessedCache.items
+      .filter(item => item.feedId === id)
       .sort((i, j) => {
         if (!i.published && !j.published) return 0;
         if (!i.published) return 1;
@@ -66,8 +68,13 @@ export async function generateStaticSite(): Promise<void> {
   const templatePath = path.join(process.cwd(), 'static-generator/templates/index.ejs');
   const template = await fs.readFile(templatePath, 'utf-8');
 
-  // Get all categories
-  const categories = getAllCategories();
+  // Categories from reports or metadata
+  const categories = Array.from(
+    new Set([
+      ...reportsCache.reports.map(r => r.category),
+      ...feedIds.flatMap(id => aiProcessedCache.feedMetadata[id]?.categories || [])
+    ])
+  ).sort();
 
   // Process reports (no longer need to parse markdown as we have structured data)
   // But we might want to format dates or other things if needed
@@ -88,7 +95,7 @@ export async function generateStaticSite(): Promise<void> {
   }
 
   const html = ejs.render(template, {
-    feeds: sources, // Pass sources as feeds to the template for backward compatibility
+    feeds,
     itemsByFeed,
     feedMetadata: aiProcessedCache.feedMetadata,
     categories,
@@ -100,13 +107,26 @@ export async function generateStaticSite(): Promise<void> {
   });
 
   // Write the output HTML file
-  await fs.writeFile(path.join(OUTPUT_DIR, 'index.html'), html);
+  await fs.writeFile(path.join(userOutputDir, 'index.html'), html);
 
   // Copy CSS file
   const cssContent = await fs.readFile(path.join(process.cwd(), 'static-generator/templates/styles.css'), 'utf-8');
-  await fs.writeFile(path.join(OUTPUT_DIR, 'styles.css'), cssContent);
+  await fs.writeFile(path.join(userOutputDir, 'styles.css'), cssContent);
 
-  console.log(`Step 6 complete: Static site generated successfully in ${OUTPUT_DIR}`);
+  console.log(`Step 6 complete: Static site generated successfully in ${userOutputDir}`);
+}
+
+async function resolveSlug(userId: string, store: PipelineStore): Promise<string> {
+  if (store instanceof FilePipelineStore) {
+    return userId;
+  }
+  try {
+    const user = await getUserById(userId);
+    return user?.slug || userId;
+  } catch (err) {
+    console.warn('Falling back to userId for slug due to lookup error:', err);
+    return userId;
+  }
 }
 
 // Main function to run this step independently

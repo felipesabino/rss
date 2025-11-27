@@ -1,25 +1,23 @@
-import { sources } from '../../config/sources';
-import { parseFeedWithMetadata, FeedMetadata, FeedItem } from '../services/feed-parser';
+import { parseFeedWithMetadata, FeedItem } from '../services/feed-parser';
 import { searchGoogleForQuery } from '../services/google-search';
-import fs from 'fs/promises';
-import path from 'path';
 import { parseDate } from '../services/date-parser';
-
-// Define the structure for the raw feed data cache
-interface RawFeedCache {
-  items: Record<number, FeedItem[]>;
-  feedMetadata: Record<number, FeedMetadata>;
-  lastUpdated: number;
-}
-
-// Path to the raw feed cache file
-const RAW_FEED_CACHE_PATH = path.join(process.cwd(), '.cache', 'step1-raw-feeds.json');
+import { FilePipelineStore, PipelineStore, RawFeedCache } from '../services/pipeline-store';
+import { getSourcesForUser } from '../services/source-config';
 
 /**
  * Fetch all sources (RSS feeds and Google Search) and save the raw data to a cache file
  */
-export async function fetchAllSources(): Promise<void> {
+export async function fetchAllSources(
+  store: PipelineStore = new FilePipelineStore(),
+  userId: string = 'default'
+): Promise<void> {
   console.log('Step 1: Fetching all sources...');
+
+  const sources = await getSourcesForUser(userId);
+  if (sources.length === 0) {
+    console.error(`No sources configured for user "${userId}". Seed SourceConfig first.`);
+    return;
+  }
 
   // Initialize cache structure
   const cache: RawFeedCache = {
@@ -28,18 +26,16 @@ export async function fetchAllSources(): Promise<void> {
     lastUpdated: Date.now()
   };
 
-  // Create cache directory if it doesn't exist
-  await fs.mkdir(path.dirname(RAW_FEED_CACHE_PATH), { recursive: true });
-
   // Process each source
+  let feedIdCounter = 1;
   for (const source of sources) {
     console.log(`Fetching source: ${source.name} (${source.type})`);
 
     try {
       let feedItems: FeedItem[] = [];
-      let metadata: FeedMetadata;
+      let metadata: any;
 
-      if (source.type === 'google-search') {
+      if (source.type === 'google') {
         if (!source.query) {
           console.error(`Source ${source.name} is missing query`);
           continue;
@@ -59,8 +55,10 @@ export async function fetchAllSources(): Promise<void> {
           title: source.name,
           description: `Google Search results for: ${source.query}`,
           siteUrl: `https://www.google.com/search?q=${encodeURIComponent(source.query)}`,
-          language: 'en', // Default
-          lastBuildDate: new Date().toISOString()
+          language: source.language || 'en', // Default
+          lastBuildDate: new Date().toISOString(),
+          sourceConfigId: source.id,
+          categories: source.categories
         };
       } else {
         // RSS Feed
@@ -72,11 +70,16 @@ export async function fetchAllSources(): Promise<void> {
         // Use the parseFeedWithMetadata function to get both items and metadata
         const result = await parseFeedWithMetadata(source.url, source.name);
         feedItems = result.items;
-        metadata = result.metadata;
+        metadata = {
+          ...result.metadata,
+          sourceConfigId: source.id,
+          categories: source.categories
+        };
       }
 
       // Store the metadata for this feed
-      cache.feedMetadata[source.id] = metadata;
+      const feedId = feedIdCounter++;
+      cache.feedMetadata[feedId] = metadata;
 
       console.log(`Source size: ${feedItems.length}`);
 
@@ -105,7 +108,7 @@ export async function fetchAllSources(): Promise<void> {
       console.log(`Filtered to ${filteredItems.length} items`);
 
       // Store the filtered items for this feed
-      cache.items[source.id] = filteredItems.map((item: any) => ({
+      cache.items[feedId] = filteredItems.map((item: any) => ({
         title: item.title,
         link: item.link,
         pubDate: item.pubDate,
@@ -120,26 +123,17 @@ export async function fetchAllSources(): Promise<void> {
   }
 
   // Save the raw feed data to cache
-  await fs.writeFile(RAW_FEED_CACHE_PATH, JSON.stringify(cache, null, 2), 'utf-8');
+  await store.saveRawFeedCache(cache);
 
-  console.log(`Step 1 complete: All sources fetched and saved to ${RAW_FEED_CACHE_PATH}`);
+  console.log('Step 1 complete: All sources fetched and cached');
 }
 
 /**
  * Load the raw feed data from cache
  */
 export async function loadRawFeedCache(): Promise<RawFeedCache> {
-  try {
-    const cacheData = await fs.readFile(RAW_FEED_CACHE_PATH, 'utf-8');
-    return JSON.parse(cacheData) as RawFeedCache;
-  } catch (error) {
-    console.error('Failed to load raw feed cache:', error);
-    return {
-      items: {},
-      feedMetadata: {},
-      lastUpdated: 0
-    };
-  }
+  const store = new FilePipelineStore();
+  return store.loadRawFeedCache();
 }
 
 // Main function to run this step independently

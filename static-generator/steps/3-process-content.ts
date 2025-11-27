@@ -1,36 +1,22 @@
-import fs from 'fs/promises';
 import path from 'path';
-import { loadExtractedContentCache, ExtractedItem } from './2-extract-content';
 import { NON_TEXT_DOMAINS, NON_TEXT_EXTENSIONS } from '../../config/constants';
 import { URL } from 'url';
-import { sources } from '../../config/sources';
-
-// Define the structure for processed content items
-export interface ProcessedContentItem extends ExtractedItem {
-  mediaType: string;
-  mediaUrl?: string;
-  shouldSkipAI: boolean;
-}
-
-// Define the structure for the processed content cache
-interface ProcessedContentCache {
-  items: ProcessedContentItem[];
-  feedMetadata: any;
-  lastUpdated: number;
-}
-
-// Path to the processed content cache file
-const PROCESSED_CONTENT_CACHE_PATH = path.join(process.cwd(), '.cache', 'step3-processed-content.json');
+import {
+  FilePipelineStore,
+  PipelineStore,
+  ProcessedContentCache,
+  ProcessedContentItem
+} from '../services/pipeline-store';
 
 /**
  * Process all extracted content items (determine media types, etc.)
  * using the extracted content data from Step 2
  */
-export async function processContent(): Promise<void> {
+export async function processContent(store: PipelineStore = new FilePipelineStore()): Promise<void> {
   console.log('Step 3: Processing content (media type detection, etc.)...');
 
   // Load the extracted content data from Step 2
-  const extractedCache = await loadExtractedContentCache();
+  const extractedCache = await store.loadExtractedContentCache();
 
   if (extractedCache.lastUpdated === 0) {
     console.error('No extracted content data found. Please run Step 2 first.');
@@ -46,23 +32,7 @@ export async function processContent(): Promise<void> {
     lastUpdated: Date.now()
   };
 
-  // Create cache directory if it doesn't exist
-  await fs.mkdir(path.dirname(PROCESSED_CONTENT_CACHE_PATH), { recursive: true });
-
-  // Get all feed IDs from both the config and the cache
-  const feedIds = new Set<number>();
-
-  // Add feed IDs from the extracted items
-  for (const item of extractedCache.items) {
-    feedIds.add(item.feedId);
-  }
-
-  // Add feed IDs from the config
-  for (const source of sources) {
-    feedIds.add(source.id);
-  }
-
-  console.log(`Processing content for ${extractedCache.items.length} items from ${feedIds.size} feeds...`);
+  console.log(`Processing content for ${extractedCache.items.length} items...`);
 
   // Process each item
   for (const item of extractedCache.items) {
@@ -112,19 +82,9 @@ export async function processContent(): Promise<void> {
   }
 
   // Save the processed content to cache
-  await fs.writeFile(
-    PROCESSED_CONTENT_CACHE_PATH,
-    JSON.stringify(processedCache, (key, value) => {
-      // Convert Date objects to ISO strings for JSON serialization
-      if (value instanceof Date) {
-        return value.toISOString();
-      }
-      return value;
-    }, 2),
-    'utf-8'
-  );
+  await store.saveProcessedContentCache(processedCache);
 
-  console.log(`Step 3 complete: All content processed and saved to ${PROCESSED_CONTENT_CACHE_PATH}`);
+  console.log('Step 3 complete: All content processed and cached');
   console.log(`Total processed items: ${processedCache.items.length}`);
 }
 
@@ -218,25 +178,8 @@ function determineMediaType(url: string, content: string): { mediaType: string; 
  * Load the processed content from cache
  */
 export async function loadProcessedContentCache(): Promise<ProcessedContentCache> {
-  try {
-    const cacheData = await fs.readFile(PROCESSED_CONTENT_CACHE_PATH, 'utf-8');
-    const parsed = JSON.parse(cacheData) as ProcessedContentCache;
-
-    // Convert ISO date strings back to Date objects
-    parsed.items = parsed.items.map(item => ({
-      ...item,
-      published: new Date(item.published)
-    }));
-
-    return parsed;
-  } catch (error) {
-    console.error('Failed to load processed content cache:', error);
-    return {
-      items: [],
-      feedMetadata: {},
-      lastUpdated: 0
-    };
-  }
+  const store = new FilePipelineStore();
+  return store.loadProcessedContentCache();
 }
 
 // Main function to run this step independently
