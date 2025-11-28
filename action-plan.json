@@ -157,7 +157,7 @@
       "After authentication, getServerSession (via apps/dashboard/lib/auth.ts) returns a valid session with a user id that matches the DB.",
       "Auth is fully contained in apps/dashboard; generator app does not depend on it."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "dash-6-dashboard-layout-and-protection",
@@ -187,7 +187,7 @@
       "Authenticated access renders the dashboard layout with navigation.",
       "No code under apps/generator is imported by the dashboard layout."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "dash-7-data-layer-modules",
@@ -214,7 +214,7 @@
       "Each function takes userId as a parameter and filters by it.",
       "Simple test calls from a temporary route work without error."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "dash-8-api-feeds-crud",
@@ -240,7 +240,7 @@
       "PUT/PATCH/DELETE enforce that the feed belongs to the current user.",
       "No imports from apps/generator appear in these API handlers."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "dash-9-page-feeds-management",
@@ -265,7 +265,7 @@
       "Creating/editing/deleting feeds updates the DB and refreshes the list.",
       "No generator-specific code is needed to manage feeds from the dashboard."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "dash-10-pages-reports-and-details",
@@ -289,7 +289,7 @@
       "/dashboard/reports/[reportId] shows report details only if the report belongs to that user.",
       "All data fetching is done via apps/dashboard/lib/data/reports.ts and packages/db."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "dash-11-page-saved-items",
@@ -312,7 +312,7 @@
       "If there are no saved items, an appropriate empty state is shown.",
       "Links work and no generator code is imported."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "dash-12-api-ai-helper",
@@ -336,7 +336,7 @@
       "Valid requests return a JSON payload with a suggested text field.",
       "The endpoint does not import any generator-specific modules; AI logic is dashboard-scoped or shared via packages/ai if you create one."
     ],
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "dash-13-ui-ai-buttons",
@@ -360,6 +360,6 @@
       "On success, suggested content appears in the form field.",
       "Errors are handled with user-friendly feedback (e.g., toast), and the form remains usable."
     ],
-    "status": "pending"
+    "status": "completed"
   }
 ]

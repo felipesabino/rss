@@ -2,6 +2,10 @@
   "name": "rest-express",
   "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
@@ -16,9 +20,19 @@
     "step3": "tsx static-generator/generator.ts --step3",
     "step4": "tsx static-generator/generator.ts --step4",
     "step5": "tsx static-generator/generator.ts --step5",
-    "step6": "tsx static-generator/generator.ts --step6"
+    "step6": "tsx static-generator/generator.ts --step6",
+    "install:db": "npm install --prefix packages/db",
+    "install:dashboard": "npm install --prefix apps/dashboard",
+    "install:all": "npm run install:db && npm run install:dashboard",
+    "postinstall": "npm run install:all",
+    "dashboard:dev": "npm run dev --prefix apps/dashboard",
+    "dashboard:build": "npm run build --prefix apps/dashboard",
+    "dashboard:lint": "npm run lint --prefix apps/dashboard",
+    "db:generate": "npm run generate --prefix packages/db",
+    "db:postinstall": "npm run postinstall --prefix packages/db"
   },
   "dependencies": {
+    "@rss/db": "file:packages/db",
     "@types/luxon": "^3.6.2",
     "axios": "^1.13.2",
     "cheerio": "^1.0.0",

@@ -3,11 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "files": ["prisma", "src"],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": ["prisma", "dist"],
   "scripts": {
-    "generate": "prisma generate"
+    "generate": "prisma generate",
+    "build": "tsc -p tsconfig.build.json",
+    "postinstall": "prisma generate && npm run build"
   },
   "dependencies": {
     "@prisma/client": "^6.0.1"

@@ -49,6 +49,19 @@ Default `DATABASE_URL` in `.env.example` matches the Docker service.
 
 ## Usage
 
+### Run everything from the repo root
+
+```bash
+# install all dependencies (root + packages/db + apps/dashboard)
+npm install
+
+# run the generator pipeline
+npm run build
+
+# start the dashboard dev server
+npm run dashboard:dev
+```
+
 ### Run the generator
 
 ```bash
@@ -66,9 +79,7 @@ npm run preview
 ### Run the dashboard (Next.js App Router)
 
 ```bash
-cd apps/dashboard
-npm install
-npm run dev
+npm run dashboard:dev
 ```
 
 The dashboard uses the shared Prisma client in `packages/db` and the same `DATABASE_URL` from the root `.env`. Make sure Postgres is running before starting the dev server.

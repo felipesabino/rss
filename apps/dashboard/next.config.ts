@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@rss/db"],
+  serverExternalPackages: ["@rss/db"],
+  turbopack: {
+    root: __dirname,
+    resolveAlias: {
+      "@rss/db": "./node_modules/@rss/db",
+    },
+  },
 };
 
 export default nextConfig;
