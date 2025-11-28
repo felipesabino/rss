@@ -1,4 +1,3 @@
-import ReactHello from "../../components/ReactHello";
 import { Button } from "../components/ui/button";
 
 const highlights = [
@@ -55,10 +54,6 @@ export function HomePage() {
           </Button>
         </div>
 
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">React integration check</h2>
-          <ReactHello message="Rendered via React in Astro" />
-        </div>
       </div>
     </main>
   );
