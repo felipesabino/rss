@@ -214,6 +214,53 @@ export const reports = pgTable(
   })
 );
 
+export const digests = pgTable(
+  'digests',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    pipelineRunId: uuid('pipeline_run_id').references(() => pipelineRuns.id, {
+      onDelete: 'set null'
+    }),
+    status: text('status').notNull().default('ready'),
+    payload: jsonb('payload').notNull(),
+    config: jsonb('config'),
+    customPrompt: text('custom_prompt'),
+    theme: jsonb('theme'),
+    error: jsonb('error'),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  table => ({
+    userGeneratedIdx: index('digests_user_generated_idx').on(table.userId, table.generatedAt),
+    userStatusIdx: index('digests_user_status_idx').on(table.userId, table.status),
+    pipelineRunIdx: index('digests_pipeline_run_idx').on(table.pipelineRunId)
+  })
+);
+
+export const digestHtml = pgTable(
+  'digest_html',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    digestId: uuid('digest_id')
+      .notNull()
+      .references(() => digests.id, { onDelete: 'cascade' }),
+    html: text('html').notNull(),
+    format: text('format').notNull().default('web'),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  table => ({
+    digestIdx: index('digest_html_digest_idx').on(table.digestId),
+    formatUnique: uniqueIndex('digest_html_digest_format_idx').on(table.digestId, table.format)
+  })
+);
+
 export const reportItems = pgTable(
   'report_items',
   {

@@ -24,6 +24,7 @@ model User {
   extractedContents  ExtractedContent[]
   processedContents  ProcessedContent[]
   aiAnalyses         AiAnalysis[]
+  digests            Digest[]
   reports            Report[]
   reportItems        ReportItem[]
   savedItems         SavedItem[]
@@ -113,6 +114,7 @@ model PipelineRun {
   extractedContents   ExtractedContent[]
   processedContents   ProcessedContent[]
   aiAnalyses          AiAnalysis[]
+  digests             Digest[]
   reports             Report[]
   scoringAudits       ScoringAudit[]
 
@@ -262,6 +264,47 @@ model ReportItem {
   @@index([reportId], map: "report_items_report_idx")
   @@index([feedItemId], map: "report_items_feed_item_idx")
   @@map("report_items")
+}
+
+model Digest {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Text @map("user_id")
+  pipelineRunId String?   @db.Uuid @map("pipeline_run_id")
+  status        String    @default("ready") @db.Text
+  payload       Json
+  config        Json?
+  customPrompt  String?   @map("custom_prompt") @db.Text
+  theme         Json?
+  error         Json?
+  generatedAt   DateTime  @default(now()) @db.Timestamptz(6) @map("generated_at")
+  expiresAt     DateTime? @db.Timestamptz(6) @map("expires_at")
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+  html        DigestHtml[]
+
+  @@index([userId, generatedAt], map: "digests_user_generated_idx")
+  @@index([userId, status], map: "digests_user_status_idx")
+  @@index([pipelineRunId], map: "digests_pipeline_run_idx")
+  @@map("digests")
+}
+
+model DigestHtml {
+  id          String    @id @default(uuid()) @db.Uuid
+  digestId    String    @db.Uuid @map("digest_id")
+  html        String    @db.Text
+  format      String    @default("web") @db.Text
+  generatedAt DateTime  @default(now()) @db.Timestamptz(6) @map("generated_at")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  digest Digest @relation(fields: [digestId], references: [id], onDelete: Cascade)
+
+  @@index([digestId], map: "digest_html_digest_idx")
+  @@unique([digestId, format], map: "digest_html_digest_format_idx")
+  @@map("digest_html")
 }
 
 model SavedItem {

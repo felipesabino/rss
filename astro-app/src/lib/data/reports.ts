@@ -1,46 +1,49 @@
-import {
-  prisma,
-  type Prisma,
-  type Report,
-  type ReportItem,
-  type FeedItem,
-} from "@rss/db";
+import { prisma, type Digest } from "@rss/db";
 
-export type ReportWithItems = Report & {
-  items: (ReportItem & { feedItem: FeedItem | null })[];
+export type DigestPayload = {
+  category?: string;
+  report?: {
+    header?: string;
+    mainStories?: Array<{
+      sectionTag?: string;
+      headline: string;
+      sourceName?: string;
+      sourceUrl?: string;
+      whatHappened?: string;
+      shortTermImpact?: string;
+      longTermImpact?: string;
+      sentiment?: string;
+    }>;
+    whatElseIsGoingOn?: Array<{
+      text: string;
+      sourceName?: string;
+      sourceUrl?: string;
+    }>;
+    byTheNumbers?: {
+      number: string;
+      commentary: string;
+    };
+    signOff?: string;
+  };
+  usedItemIds?: number[];
 };
 
-export async function listReports(userId: string): Promise<Report[]> {
-  return prisma.report.findMany({
+export type DigestWithPayload = Digest & { payload: DigestPayload };
+
+export async function listDigests(userId: string): Promise<DigestWithPayload[]> {
+  const digests = await prisma.digest.findMany({
     where: { userId },
     orderBy: { generatedAt: "desc" },
   });
+  return digests as unknown as DigestWithPayload[];
 }
 
-export async function getReportById(
+export async function getDigestById(
   userId: string,
-  reportId: string
-): Promise<ReportWithItems | null> {
-  return prisma.report.findFirst({
-    where: { id: reportId, userId },
-    include: {
-      items: {
-        orderBy: { createdAt: "desc" },
-        include: { feedItem: true },
-      },
-    },
+  digestId: string
+): Promise<DigestWithPayload | null> {
+  const digest = await prisma.digest.findFirst({
+    where: { id: digestId, userId },
   });
-}
-
-export async function createReport(
-  userId: string,
-  data: Prisma.ReportUncheckedCreateInput
-): Promise<Report> {
-  if (data.userId && data.userId !== userId) {
-    throw new Error("Cannot create report for a different user");
-  }
-
-  return prisma.report.create({
-    data: { ...data, userId },
-  });
+  return digest as unknown as DigestWithPayload | null;
 }

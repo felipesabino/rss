@@ -11,8 +11,7 @@ import {
   feedItems as feedItemsTable,
   pipelineRuns,
   processedContents as processedContentsTable,
-  reportItems as reportItemsTable,
-  reports as reportsTable,
+  digests as digestsTable,
   scoringAudits as scoringAuditsTable,
   sourceConfigs,
   users
@@ -781,80 +780,35 @@ export class DbPipelineStore implements PipelineStore {
       return { reports: [], lastUpdated: 0 };
     }
 
-    const reportRows = await this.db
+    const digestRows = await this.db
       .select({
-        id: reportsTable.id,
-        category: reportsTable.category,
-        header: reportsTable.header,
-        generatedAt: reportsTable.generatedAt
+        id: digestsTable.id,
+        payload: digestsTable.payload,
+        generatedAt: digestsTable.generatedAt,
+        pipelineRunId: digestsTable.pipelineRunId
       })
-      .from(reportsTable)
-      .where(and(eq(reportsTable.userId, this.userId), eq(reportsTable.pipelineRunId, runId)));
+      .from(digestsTable)
+      .where(and(eq(digestsTable.userId, this.userId), eq(digestsTable.pipelineRunId, runId)));
 
-    const reportIds = reportRows.map(r => r.id);
-    if (reportIds.length === 0) {
+    if (!digestRows.length) {
       return { reports: [], lastUpdated: 0 };
     }
 
-    const items = await this.db
-      .select({
-        reportId: reportItemsTable.reportId,
-        sectionTag: reportItemsTable.sectionTag,
-        headline: reportItemsTable.headline,
-        sourceName: reportItemsTable.sourceName,
-        sourceUrl: reportItemsTable.sourceUrl,
-        summary: reportItemsTable.summary,
-        sentiment: reportItemsTable.sentiment,
-        shortTermImpact: reportItemsTable.shortTermImpact,
-        longTermImpact: reportItemsTable.longTermImpact,
-        score: reportItemsTable.score
-      })
-      .from(reportItemsTable)
-      .where(inArray(reportItemsTable.reportId, reportIds));
-
-    const reports: CategoryReport[] = reportRows.map(r => {
-      const rows = items.filter(i => i.reportId === r.id);
-      const mainStories = rows.filter(i => i.sectionTag !== 'WHAT_ELSE' && i.sectionTag !== 'BY_THE_NUMBERS').map(i => ({
-        sectionTag: i.sectionTag ?? '',
-        headline: i.headline,
-        sourceName: i.sourceName ?? '',
-        sourceUrl: i.sourceUrl ?? '',
-        whatHappened: i.summary ?? '',
-        whyItMatters: '',
-        shortTermImpact: i.shortTermImpact ?? '',
-        longTermImpact: i.longTermImpact ?? '',
-        sentiment: (i.sentiment as any) ?? 'Mixed',
-        sentimentRationale: ''
-      }));
-
-      const whatElseIsGoingOn = rows
-        .filter(i => i.sectionTag === 'WHAT_ELSE')
-        .map(i => ({
-          text: i.summary ?? i.headline,
-          sourceName: i.sourceName ?? '',
-          sourceUrl: i.sourceUrl ?? ''
-        }));
-
-      const byTheNumbersRow = rows.find(i => i.sectionTag === 'BY_THE_NUMBERS');
-
-      const report: Report = {
-        header: r.header ?? '',
-        mainStories,
-        whatElseIsGoingOn,
-        byTheNumbers: byTheNumbersRow
-          ? {
-              number: byTheNumbersRow.headline,
-              commentary: byTheNumbersRow.summary ?? ''
-            }
-          : undefined,
-        signOff: ''
-      };
-
+    const reports: CategoryReport[] = digestRows.map(row => {
+      const payload = (row.payload ?? {}) as any;
+      const category = payload.category ?? 'Uncategorized';
+      const reportPayload = (payload.report ?? {}) as Report;
       return {
-        category: r.category,
-        report,
-        generatedAt: r.generatedAt?.getTime() ?? Date.now(),
-        usedItemIds: []
+        category,
+        report: {
+          header: reportPayload.header ?? '',
+          mainStories: reportPayload.mainStories ?? [],
+          whatElseIsGoingOn: reportPayload.whatElseIsGoingOn ?? [],
+          byTheNumbers: reportPayload.byTheNumbers,
+          signOff: reportPayload.signOff ?? ''
+        },
+        generatedAt: row.generatedAt?.getTime() ?? Date.now(),
+        usedItemIds: payload.usedItemIds ?? []
       };
     });
 
@@ -863,67 +817,23 @@ export class DbPipelineStore implements PipelineStore {
 
   async saveReportsCache(cache: ReportsCache): Promise<void> {
     const runId = await this.ensurePipelineRun();
-    const feedMap = await this.fetchAllFeedItems();
-
-    await this.db.delete(reportsTable).where(and(eq(reportsTable.userId, this.userId), eq(reportsTable.pipelineRunId, runId)));
+    await this.db
+      .delete(digestsTable)
+      .where(and(eq(digestsTable.userId, this.userId), eq(digestsTable.pipelineRunId, runId)));
 
     for (const categoryReport of cache.reports) {
-      const [reportRow] = await this.db
-        .insert(reportsTable)
-        .values({
-          userId: this.userId,
-          pipelineRunId: runId,
+      await this.db.insert(digestsTable).values({
+        userId: this.userId,
+        pipelineRunId: runId,
+        status: 'ready',
+        payload: {
           category: categoryReport.category,
-          header: categoryReport.report.header ?? '',
-          generatedAt: new Date(categoryReport.generatedAt)
-        })
-        .returning({ id: reportsTable.id });
-
-      const storyRows = [
-        ...(categoryReport.report.mainStories || []).map(story => ({
-          sectionTag: story.sectionTag ?? '',
-          headline: story.headline,
-          sourceName: story.sourceName,
-          sourceUrl: story.sourceUrl,
-          summary: story.whatHappened,
-          sentiment: story.sentiment,
-          shortTermImpact: story.shortTermImpact,
-          longTermImpact: story.longTermImpact
-        })),
-        ...(categoryReport.report.whatElseIsGoingOn || []).map(story => ({
-          sectionTag: 'WHAT_ELSE',
-          headline: story.text.slice(0, 120),
-          sourceName: story.sourceName,
-          sourceUrl: story.sourceUrl,
-          summary: story.text
-        })),
-        ...(categoryReport.report.byTheNumbers
-          ? [
-              {
-                sectionTag: 'BY_THE_NUMBERS',
-                headline: categoryReport.report.byTheNumbers.number,
-                summary: categoryReport.report.byTheNumbers.commentary
-              }
-            ]
-          : [])
-      ];
-
-      for (const row of storyRows) {
-        const feedItemId = row.sourceUrl ? feedMap.get(row.sourceUrl) : undefined;
-        await this.db.insert(reportItemsTable).values({
-          reportId: reportRow.id,
-          userId: this.userId,
-          feedItemId: feedItemId ?? null,
-          sectionTag: row.sectionTag ?? null,
-          headline: row.headline,
-          sourceName: row.sourceName ?? null,
-          sourceUrl: row.sourceUrl ?? null,
-          summary: row.summary ?? null,
-          sentiment: row.sentiment ?? null,
-          shortTermImpact: row.shortTermImpact ?? null,
-          longTermImpact: row.longTermImpact ?? null
-        });
-      }
+          report: categoryReport.report,
+          usedItemIds: categoryReport.usedItemIds ?? []
+        },
+        config: { category: categoryReport.category },
+        generatedAt: new Date(categoryReport.generatedAt)
+      });
     }
   }
 

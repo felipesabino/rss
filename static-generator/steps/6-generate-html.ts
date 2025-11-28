@@ -6,6 +6,8 @@ import { getReportsWithItemsForUser } from '../services/db-reports';
 import { listSavedItems } from '../services/saved-items';
 import { getUserById } from '../services/users';
 import { fileURLToPath } from 'url';
+import { createDb } from '../services/db';
+import { digestHtml } from '../../drizzle/schema';
 
 
 
@@ -21,6 +23,7 @@ export async function generateStaticSite(store?: PipelineStore, userId: string =
   const needsCleanup = !store;
   const activeStore = store ?? new DbPipelineStore({ userId });
   const resolvedUserId = activeStore.getUserId?.() ?? userId;
+  const { db, pool } = createDb();
 
   if (!(activeStore instanceof DbPipelineStore)) {
     throw new Error('Step 6 requires a DbPipelineStore so data is fetched from the database. Re-run with PIPELINE_STORE=db.');
@@ -78,6 +81,23 @@ export async function generateStaticSite(store?: PipelineStore, userId: string =
           formatDate
         });
         await fs.writeFile(path.join(reportsDir, `${report.id}.html`), reportHtml);
+        await db
+          .insert(digestHtml)
+          .values({
+            digestId: report.id,
+            html: reportHtml,
+            format: 'web',
+            generatedAt: new Date(),
+            updatedAt: new Date()
+          })
+          .onConflictDoUpdate({
+            target: [digestHtml.digestId, digestHtml.format],
+            set: {
+              html: reportHtml,
+              generatedAt: new Date(),
+              updatedAt: new Date()
+            }
+          });
       }
       console.log(`Generated ${historicalReports.length} historical report page(s) for user ${resolvedUserId}`);
     }
@@ -153,6 +173,7 @@ export async function generateStaticSite(store?: PipelineStore, userId: string =
 
     console.log(`Step 6 complete: Static site generated successfully in ${userOutputDir}`);
   } finally {
+    await pool.end();
     if (needsCleanup && activeStore instanceof DbPipelineStore) {
       await activeStore.close();
     }

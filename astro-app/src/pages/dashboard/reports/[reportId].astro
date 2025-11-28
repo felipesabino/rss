@@ -1,14 +1,14 @@
 ---
 import MainLayout from '../../../layouts/MainLayout.astro';
 import { ReportDetailPage } from '../../../react/pages/ReportDetailPage';
-import { getReportById } from '../../../lib/data/reports';
+import { getDigestById } from '../../../lib/data/reports';
 import { requireUser } from '../../../lib/auth';
 
 export const prerender = false;
 
 const { reportId } = Astro.params;
 const session = await requireUser();
-const report = reportId ? await getReportById(session.user?.id ?? "", reportId) : null;
+const report = reportId ? await getDigestById(session.user?.id ?? "", reportId) : null;
 ---
 
 <MainLayout title={report ? report.header ?? "Report details" : "Report"}>
