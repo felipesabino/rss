@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "workspaces": [
-    "apps/*",
+    "astro-app",
     "packages/*"
   ],
   "license": "MIT",
@@ -22,12 +22,9 @@
     "step5": "tsx static-generator/generator.ts --step5",
     "step6": "tsx static-generator/generator.ts --step6",
     "install:db": "npm install --prefix packages/db",
-    "install:dashboard": "npm install --prefix apps/dashboard",
-    "install:all": "npm run install:db && npm run install:dashboard",
+    "install:astro": "npm install --prefix astro-app",
+    "install:all": "npm run install:db && npm run install:astro",
     "postinstall": "npm run install:all",
-    "dashboard:dev": "npm run dev --prefix apps/dashboard",
-    "dashboard:build": "npm run build --prefix apps/dashboard",
-    "dashboard:lint": "npm run lint --prefix apps/dashboard",
     "db:generate": "npm run generate --prefix packages/db",
     "db:postinstall": "npm run postinstall --prefix packages/db"
   },

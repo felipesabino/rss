@@ -1,0 +1,20 @@
+---
+import MainLayout from '../../../layouts/MainLayout.astro';
+import { ReportDetailPage } from '../../../react/pages/ReportDetailPage';
+import { getReportById } from '../../../lib/data/reports';
+import { requireUser } from '../../../lib/auth';
+
+export const prerender = false;
+
+const { reportId } = Astro.params;
+const session = await requireUser();
+const report = reportId ? await getReportById(session.user?.id ?? "", reportId) : null;
+---
+
+<MainLayout title={report ? report.header ?? "Report details" : "Report"}>
+  {report ? (
+    <ReportDetailPage client:load userSlug={session.user?.slug} report={report} />
+  ) : (
+    <p class="text-sm text-muted-foreground">Report not found.</p>
+  )}
+</MainLayout>

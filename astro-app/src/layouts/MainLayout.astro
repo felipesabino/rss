@@ -1,0 +1,47 @@
+---
+import "../styles/global.css";
+
+export interface Props {
+  title?: string;
+  description?: string;
+  canonicalUrl?: string;
+}
+
+const {
+  title = "RSS Dashboard",
+  description = "Manage feeds, reports, and saved items from the shared RSS dashboard.",
+  canonicalUrl,
+} = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <link rel="icon" href="/favicon.ico" />
+  </head>
+  <body class="min-h-screen bg-background text-foreground antialiased">
+    <slot />
+  </body>
+</html>
+
+<style>
+  :global(:root) {
+    --font-geist-sans: "Geist", "Inter", "Segoe UI", system-ui, -apple-system,
+      sans-serif;
+    --font-geist-mono: "Geist Mono", "SFMono-Regular", Menlo, Monaco, Consolas,
+      monospace;
+  }
+
+  :global(body) {
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+  }
+
+  :global(code) {
+    font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+      Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+</style>

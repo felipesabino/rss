@@ -1,6 +1,6 @@
 # Brutalist Report Static Site Generator
 
-A static site generator for RSS feeds, inspired by Brutalist Report aesthetics.
+A static site generator for RSS feeds, inspired by Brutalist Report aesthetics. Frontend is now an Astro app (`astro-app/`) that replaces the old Next.js dashboard (archived under `next-app/`).
 
 ## Overview
 
@@ -17,6 +17,8 @@ Multi-tenant static generator that ingests RSS and Google Custom Search, runs a 
 
 ## Project Structure
 
+- `astro-app/` – Astro frontend (replaces Next.js dashboard), React islands for UI
+- `next-app/` – Archived Next.js dashboard source (no longer active)
 - `static-generator/` – pipeline steps, services, templates
 - `drizzle/schema.ts` – DB schema; `migrations/` – SQL migrations
 - `scripts/` – DB utilities, seeding, retention cleanup, admin and saved-item CLIs
@@ -52,14 +54,11 @@ Default `DATABASE_URL` in `.env.example` matches the Docker service.
 ### Run everything from the repo root
 
 ```bash
-# install all dependencies (root + packages/db + apps/dashboard)
+# install all dependencies (root + packages/db + astro-app)
 npm install
 
 # run the generator pipeline
 npm run build
-
-# start the dashboard dev server
-npm run dashboard:dev
 ```
 
 ### Run the generator
@@ -76,13 +75,20 @@ npm run build
 npm run preview
 ```
 
-### Run the dashboard (Next.js App Router)
+### Run the frontend (Astro)
 
 ```bash
-npm run dashboard:dev
+# dev server
+npm run dev --prefix astro-app
+
+# production build (server output with Node adapter)
+npm run build --prefix astro-app
+
+# preview built output
+npm run preview --prefix astro-app
 ```
 
-The dashboard uses the shared Prisma client in `packages/db` and the same `DATABASE_URL` from the root `.env`. Make sure Postgres is running before starting the dev server.
+The Astro app uses the shared Prisma client in `packages/db` and the same `DATABASE_URL` from the root `.env` (session helper currently uses demo data; wire real auth as needed).
 
 Pipeline (DB default):
 
@@ -180,16 +186,10 @@ DEFAULT_USER_ID=default
 
 The project uses GitHub Actions for automated deployment and other CI/CD tasks. The workflows are defined in the `.github/workflows` directory.
 
-### Deployment Workflow
+### Deployment Workflows
 
-The deployment workflow (`.github/workflows/deploy.yml`) automates the process of building and deploying the static site:
-
-1. Triggers on pushes to the main branch
-2. Sets up Node.js environment
-3. Installs dependencies
-4. Fetches content from RSS feeds
-5. Builds the static site
-6. Deploys the built site to the hosting platform
+- Static generator: `.github/workflows/deploy.yml` (GitHub Pages) and `.github/workflows/deploy-ollama.yml` (Ollama variant) still build `dist/` from the pipeline.
+- Astro frontend: `.github/workflows/astro-app-build.yml` builds `astro-app` and uploads the build artifacts. Point hosting to `astro-app/dist` if deploying the new frontend.
 
 ### Ollama Integration
 

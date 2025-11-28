@@ -1,0 +1,15 @@
+---
+import MainLayout from '../../../layouts/MainLayout.astro';
+import { SavedPage } from '../../../react/pages/SavedPage';
+import { listSavedItems } from '../../../lib/data/saved-items';
+import { requireUser } from '../../../lib/auth';
+
+export const prerender = false;
+
+const session = await requireUser();
+const savedItems = await listSavedItems(session.user?.id ?? "");
+---
+
+<MainLayout title="Saved items">
+  <SavedPage client:load userSlug={session.user?.slug} savedItems={savedItems} />
+</MainLayout>

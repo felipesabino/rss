@@ -1,365 +1,390 @@
 [
   {
-    "id": "dash-1-init-next-app",
-    "title": "Initialize Next.js dashboard app with TypeScript and Tailwind",
-    "description": "Create a Next.js App Router project inside apps/dashboard, enable TypeScript and Tailwind CSS, and prepare a basic layout structure. This app is only responsible for the dashboard (UI + HTTP APIs), not for generator logic.",
+    "id": "migrate-1-analyze-next-app",
+    "title": "Analyze existing Next.js app and document architecture",
+    "description": "Inspect the current Next.js project, list routes, data fetching patterns, shared layouts, and API routes. Produce a document that will guide the Astro migration.",
     "context": {
-      "goal": "Set up a modern, flexible frontend environment for the dashboard under apps/dashboard, separate from the generator app.",
-      "constraints": [
-        "Use App Router (app/ directory).",
-        "Enable TypeScript.",
-        "Tailwind must be configured.",
-        "The app should not depend directly on apps/generator; only on packages/*."
-      ]
-    },
-    "dependencies": [],
-    "artifacts": [
-      { "path": "apps/dashboard/package.json", "type": "json", "required": true },
-      { "path": "apps/dashboard/app/layout.tsx", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/app/page.tsx", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/tailwind.config.ts", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/postcss.config.mjs", "type": "javascript", "required": true }
-    ],
-    "commands": [
-      {
-        "description": "Create Next.js app in apps/dashboard",
-        "run": "cd apps && npx create-next-app@latest dashboard --typescript --app --eslint --tailwind"
-      },
-      {
-        "description": "Run dev server for dashboard",
-        "run": "cd apps/dashboard && npm run dev"
-      }
-    ],
-    "verification": [
-      "The dashboard dev server starts successfully and serves a basic Next.js page at http://localhost:3000.",
-      "Tailwind classes used in apps/dashboard/app/page.tsx are rendered correctly."
-    ],
-    "status": "completed"
-  },
-  {
-    "id": "dash-2-install-shadcn",
-    "title": "Install and configure shadcn/ui in the dashboard app",
-    "description": "Integrate shadcn/ui into apps/dashboard to provide a cohesive, extensible UI component library.",
-    "context": {
-      "goal": "Use shadcn/ui for consistent, composable UI components in the dashboard only, without affecting the generator.",
+      "goal": "Understand the current Next.js app structure so the migration to Astro can be planned without missing important features.",
       "notes": [
-        "Components will be generated into apps/dashboard/components/ui.",
-        "shadcn/ui sits on top of Tailwind and Radix."
-      ]
-    },
-    "dependencies": ["dash-1-init-next-app"],
-    "artifacts": [
-      { "path": "apps/dashboard/components/ui/button.tsx", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/components/ui/input.tsx", "type": "typescript", "required": false },
-      { "path": "apps/dashboard/components/ui/card.tsx", "type": "typescript", "required": false }
-    ],
-    "commands": [
-      {
-        "description": "Initialize shadcn/ui in apps/dashboard",
-        "run": "cd apps/dashboard && npx shadcn-ui@latest init"
-      },
-      {
-        "description": "Add base components for dashboard UI",
-        "run": "cd apps/dashboard && npx shadcn-ui@latest add button input card form"
-      }
-    ],
-    "verification": [
-      "shadcn configuration files (e.g., components.json) exist in apps/dashboard.",
-      "A shadcn Button can be imported and rendered in apps/dashboard/app/page.tsx.",
-      "Styles render correctly with Tailwind in the dashboard."
-    ],
-    "status": "completed"
-  },
-  {
-    "id": "dash-3-setup-shared-prisma-client",
-    "title": "Set up shared Prisma schema and client in packages/db",
-    "description": "Configure a shared Prisma schema and client under packages/db so both apps/generator and apps/dashboard can use the same database definition. The dashboard will import the client from this package, not define its own schema.",
-    "context": {
-      "goal": "Centralize DB schema and client in packages/db, so generation and dashboard can be deployed independently but share the same data model.",
-      "constraints": [
-        "Prisma schema lives in packages/db/prisma/schema.prisma.",
-        "Prisma client is created in packages/db/src/client.ts and exported.",
-        "apps/dashboard must only import from packages/db, not manage its own schema."
+        "Identify whether the app uses Pages Router (pages/) or App Router (app/).",
+        "List all pages and their URLs.",
+        "Identify which pages use getStaticProps, getServerSideProps, getStaticPaths, or route handlers.",
+        "List all API routes (pages/api/* or app/api/*).",
+        "Note any global layout, SEO handling, and providers (e.g., _app.tsx, _document.tsx, layout.tsx)."
       ]
     },
     "dependencies": [],
     "artifacts": [
-      { "path": "packages/db/prisma/schema.prisma", "type": "prisma", "required": true },
-      { "path": "packages/db/src/client.ts", "type": "typescript", "required": true },
-      { "path": "packages/db/package.json", "type": "json", "required": true }
-    ],
-    "commands": [
       {
-        "description": "Generate Prisma client in packages/db",
-        "run": "cd packages/db && npx prisma generate"
+        "path": "docs/migration-architecture.md",
+        "type": "markdown",
+        "required_sections": [
+          "Route Inventory",
+          "Data Fetching Overview",
+          "API Routes Inventory",
+          "Layouts and SEO",
+          "Migration Strategy Overview"
+        ]
       }
     ],
+    "commands": [],
     "verification": [
-      "packages/db/prisma/schema.prisma contains the shared schema used by both generator and dashboard.",
-      "packages/db/src/client.ts exports a singleton Prisma client.",
-      "From apps/dashboard, importing the client from packages/db works (type checks, no runtime errors)."
+      "docs/migration-architecture.md exists.",
+      "The document lists all current routes and their behavior (static/SSR/dynamic).",
+      "API routes are inventoried and categorized by complexity.",
+      "Global layout and SEO patterns are described."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-4-integrate-prisma-in-dashboard",
-    "title": "Integrate shared Prisma client into the dashboard app",
-    "description": "Wire the shared Prisma client from packages/db into apps/dashboard, and create a small data test to confirm queries work from the dashboard environment.",
+    "id": "migrate-2-init-astro-project",
+    "title": "Initialize new Astro project",
+    "description": "Create a new Astro project (astro-app) with TypeScript and React integration.",
     "context": {
-      "goal": "Allow Next.js server components and API routes in apps/dashboard to query the DB through packages/db.",
+      "goal": "Have a fresh Astro project that will become the new frontend, independent from Next.js.",
       "constraints": [
-        "No direct Prisma schema in apps/dashboard.",
-        "All DB imports must come from packages/db."
+        "Project root for Astro is astro-app/.",
+        "TypeScript must be enabled.",
+        "React integration will be added next."
       ]
     },
-    "dependencies": ["dash-3-setup-shared-prisma-client"],
+    "dependencies": ["migrate-1-analyze-next-app"],
     "artifacts": [
-      { "path": "apps/dashboard/lib/db-test.ts", "type": "typescript", "required": false }
+      { "path": "astro-app/package.json", "type": "json", "required": true },
+      { "path": "astro-app/astro.config.mjs", "type": "javascript", "required": true },
+      { "path": "astro-app/tsconfig.json", "type": "json", "required": true },
+      { "path": "astro-app/src/pages/index.astro", "type": "astro", "required": true }
     ],
     "commands": [
       {
-        "description": "Run a small test route or script to verify DB connectivity",
-        "run": "cd apps/dashboard && npm run dev"
+        "description": "Create the Astro project in astro-app/",
+        "run": "npm create astro@latest astro-app -- --template basics --typescript"
+      },
+      {
+        "description": "Run the Astro dev server",
+        "run": "cd astro-app && npm install && npm run dev"
       }
     ],
     "verification": [
-      "A simple test route or script in apps/dashboard can call Prisma client from packages/db and run a basic query (e.g., count users).",
-      "No multiple-client warnings during hot reload (singleton pattern works)."
+      "Astro dev server starts successfully and serves a default index page.",
+      "TypeScript is enabled (tsconfig.json present)."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-5-setup-authjs",
-    "title": "Configure Auth.js (NextAuth) in apps/dashboard with Prisma adapter from packages/db",
-    "description": "Set up Auth.js for apps/dashboard using Prisma adapter that points to the shared schema in packages/db, enabling login and sessions for dashboard users.",
+    "id": "migrate-3-add-react-integration",
+    "title": "Add React integration to Astro",
+    "description": "Configure Astro to support React components as islands by installing and enabling @astrojs/react.",
     "context": {
-      "goal": "Provide authentication and session handling solely in apps/dashboard, while reusing the shared user model in packages/db.",
-      "constraints": [
-        "Auth route must be located at apps/dashboard/app/api/auth/[...nextauth]/route.ts.",
-        "Use Prisma adapter configured with the client from packages/db.",
-        "User data remains in shared DB; only dashboard owns the auth UI and routes."
+      "goal": "Allow reuse of existing React components from the Next.js app inside Astro pages.",
+      "notes": [
+        "React will be used for interactive parts; Astro will provide routing and overall page structure."
       ]
     },
-    "dependencies": ["dash-4-integrate-prisma-in-dashboard"],
+    "dependencies": ["migrate-2-init-astro-project"],
     "artifacts": [
-      { "path": "apps/dashboard/app/api/auth/[...nextauth]/route.ts", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/lib/auth.ts", "type": "typescript", "required": true },
-      { "path": ".env.example", "type": "env", "required_keys": ["AUTH_SECRET"] }
+      { "path": "astro-app/astro.config.mjs", "type": "javascript", "required": true }
     ],
     "commands": [
       {
-        "description": "Install Auth.js dependencies in dashboard",
-        "run": "cd apps/dashboard && npm install next-auth @auth/prisma-adapter"
+        "description": "Install and configure React integration",
+        "run": "cd astro-app && npm install @astrojs/react && npx astro add react"
       }
     ],
     "verification": [
-      "Visiting a protected test page in apps/dashboard redirects unauthenticated users to a sign-in page.",
-      "After authentication, getServerSession (via apps/dashboard/lib/auth.ts) returns a valid session with a user id that matches the DB.",
-      "Auth is fully contained in apps/dashboard; generator app does not depend on it."
+      "astro.config.mjs includes the React integration plugin.",
+      "A simple React component can be rendered in an .astro page using client directives (e.g., client:load)."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-6-dashboard-layout-and-protection",
-    "title": "Create dashboard layout and protect /dashboard routes",
-    "description": "Implement a shared layout for the dashboard feature area under apps/dashboard/app/(dashboard)/dashboard and ensure all these routes are auth-protected.",
+    "id": "migrate-4-setup-tailwind-and-global-styles",
+    "title": "Configure Tailwind and global styles in Astro",
+    "description": "If the Next.js app uses Tailwind or global CSS, configure Tailwind and import global styles in astro-app.",
     "context": {
-      "goal": "Provide a consistent, authenticated entry point for user-specific dashboard features, fully separated from report generation runtime.",
-      "requirements": [
-        "Define a layout at apps/dashboard/app/(dashboard)/dashboard/layout.tsx using shadcn/ui.",
-        "Protect all routes under /dashboard using server-side session checks.",
-        "Include navigation links for Feeds, Reports, Saved."
+      "goal": "Ensure styling patterns from the Next.js app can be reused in Astro.",
+      "notes": [
+        "If Tailwind is used in Next.js, mirror the configuration here.",
+        "Make sure Tailwind content paths include .astro and .tsx files in astro-app."
       ]
     },
-    "dependencies": ["dash-5-setup-authjs", "dash-2-install-shadcn"],
+    "dependencies": ["migrate-2-init-astro-project"],
     "artifacts": [
-      { "path": "apps/dashboard/app/(dashboard)/dashboard/layout.tsx", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/app/(dashboard)/dashboard/page.tsx", "type": "typescript", "required": true }
+      { "path": "astro-app/tailwind.config.cjs or tailwind.config.ts", "type": "javascript", "required": false },
+      { "path": "astro-app/src/styles/global.css", "type": "css", "required": false }
     ],
     "commands": [
       {
-        "description": "Run dashboard dev server and visit /dashboard",
-        "run": "cd apps/dashboard && npm run dev"
+        "description": "Add Tailwind to Astro (if using Tailwind)",
+        "run": "cd astro-app && npx astro add tailwind",
+        "optional": true
       }
     ],
     "verification": [
-      "Unauthenticated access to /dashboard leads to sign-in.",
-      "Authenticated access renders the dashboard layout with navigation.",
-      "No code under apps/generator is imported by the dashboard layout."
+      "Tailwind configuration exists if it was used in the Next.js app.",
+      "Global styles from Next.js are either copied or re-created in Astro and imported in a layout or root.",
+      "Tailwind classes render correctly in Astro pages/React components."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-7-data-layer-modules",
-    "title": "Create dashboard data access modules under apps/dashboard/lib/data",
-    "description": "Implement thin data access modules for the dashboard app that wrap Prisma calls imported from packages/db and always scope data by userId.",
+    "id": "migrate-5-create-base-layout-in-astro",
+    "title": "Create a base layout in Astro mirroring Next.js layout",
+    "description": "Implement a main layout in Astro that replicates the structure and SEO meta tags of the existing Next.js layout/_app.",
     "context": {
-      "goal": "Provide a clean data layer for the dashboard that does not rely on generator internals and can run independently.",
-      "requirements": [
-        "Modules live under apps/dashboard/lib/data/*.ts.",
-        "All functions accept a userId and use packages/db client.",
-        "Support operations for users, sources, reports, saved items."
+      "goal": "Provide a common layout shell in Astro for all pages, similar to Next.js _app.tsx or layout.tsx.",
+      "notes": [
+        "Include <html>, <head>, and <body> structure if using a root layout.",
+        "Expose props for title/meta where needed."
       ]
     },
-    "dependencies": ["dash-4-integrate-prisma-in-dashboard"],
+    "dependencies": ["migrate-1-analyze-next-app", "migrate-2-init-astro-project"],
     "artifacts": [
-      { "path": "apps/dashboard/lib/data/users.ts", "type": "typescript", "required": false },
-      { "path": "apps/dashboard/lib/data/sources.ts", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/lib/data/reports.ts", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/lib/data/saved-items.ts", "type": "typescript", "required": true }
+      { "path": "astro-app/src/layouts/MainLayout.astro", "type": "astro", "required": true }
     ],
     "commands": [],
     "verification": [
-      "Each data function imports the Prisma client from packages/db, not from apps/generator.",
-      "Each function takes userId as a parameter and filters by it.",
-      "Simple test calls from a temporary route work without error."
+      "MainLayout.astro exists and includes head/meta tags similar to the Next layout.",
+      "Index page uses the layout and renders without errors."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-8-api-feeds-crud",
-    "title": "Implement feeds CRUD API routes under apps/dashboard/app/api/feeds",
-    "description": "Create REST-like API endpoints to manage SourceConfig records for the authenticated user, under apps/dashboard/app/api/feeds, using the dashboard data layer and shared DB client.",
+    "id": "migrate-6-migrate-shared-react-components",
+    "title": "Migrate shared React components from Next.js to Astro",
+    "description": "Copy reusable React components from the Next.js app into astro-app/src/react/components and adjust imports to remove Next-specific dependencies.",
     "context": {
-      "goal": "Enable the dashboard UI to manage feeds/searches through dedicated API routes, independent from generator internals.",
-      "requirements": [
-        "Endpoints at apps/dashboard/app/api/feeds/route.ts and apps/dashboard/app/api/feeds/[id]/route.ts.",
-        "Use Auth helpers to get userId; delegate DB work to apps/dashboard/lib/data/sources.ts."
+      "goal": "Preserve reusable UI elements and logic from the Next.js app as React components in the Astro project.",
+      "notes": [
+        "Remove or replace next/link and next/image with standard elements or Astro equivalents.",
+        "Keep styling (CSS, Tailwind) intact where possible."
       ]
     },
-    "dependencies": ["dash-5-setup-authjs", "dash-7-data-layer-modules"],
+    "dependencies": ["migrate-3-add-react-integration", "migrate-4-setup-tailwind-and-global-styles"],
     "artifacts": [
-      { "path": "apps/dashboard/app/api/feeds/route.ts", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/app/api/feeds/[id]/route.ts", "type": "typescript", "required": true },
-      { "path": "docs/dashboard-api.md", "type": "markdown", "required_sections": ["Feeds API"] }
+      { "path": "astro-app/src/react/components", "type": "directory", "required": true }
     ],
     "commands": [],
     "verification": [
-      "GET /api/feeds returns only the authenticated user's feeds.",
-      "POST /api/feeds creates a feed tied to that user.",
-      "PUT/PATCH/DELETE enforce that the feed belongs to the current user.",
-      "No imports from apps/generator appear in these API handlers."
+      "Core shared components (buttons, cards, layout pieces, etc.) are available under astro-app/src/react/components.",
+      "Imports using next/link or next/image are replaced with appropriate alternatives.",
+      "These components can be imported into an Astro page and rendered via client directives without runtime errors."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-9-page-feeds-management",
-    "title": "Implement /dashboard/feeds page for managing feeds",
-    "description": "Create a dashboard page at apps/dashboard/app/(dashboard)/dashboard/feeds/page.tsx that lists the user's feeds and provides forms to create and edit them, calling the feeds API.",
+    "id": "migrate-7-migrate-page-components-to-react-pages",
+    "title": "Extract Next.js page components into React page components",
+    "description": "For each significant Next.js page, create a corresponding React component under astro-app/src/react/pages that encapsulates the page UI (without Next data-fetching functions).",
     "context": {
-      "goal": "Give users a UI to manage their feed/search configuration via the dashboard app only.",
-      "requirements": [
-        "Use shadcn/ui components for table/list and forms.",
-        "Use React Hook Form + Zod for form validation.",
-        "Communicate with the feeds API routes for mutations."
+      "goal": "Separate UI from data-fetching logic so Astro can handle data loading while React handles UI.",
+      "notes": [
+        "Move TSX from Next pages into React components like HomePage, ReportsPage, etc.",
+        "Strip out getStaticProps/getServerSideProps from these components (they will be handled in Astro)."
       ]
     },
-    "dependencies": ["dash-6-dashboard-layout-and-protection", "dash-8-api-feeds-crud"],
+    "dependencies": ["migrate-6-migrate-shared-react-components"],
     "artifacts": [
-      { "path": "apps/dashboard/app/(dashboard)/dashboard/feeds/page.tsx", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/components/feed-form.tsx", "type": "typescript", "required": false }
+      { "path": "astro-app/src/react/pages", "type": "directory", "required": true }
     ],
     "commands": [],
     "verification": [
-      "Authenticated users see their feeds listed at /dashboard/feeds.",
-      "Creating/editing/deleting feeds updates the DB and refreshes the list.",
-      "No generator-specific code is needed to manage feeds from the dashboard."
+      "For each key Next.js page, there is a corresponding React page component in astro-app/src/react/pages.",
+      "These components do not import Next-specific functions (getStaticProps, etc.).",
+      "Components compile and can be rendered inside a test Astro page."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-10-pages-reports-and-details",
-    "title": "Implement /dashboard/reports and /dashboard/reports/[reportId] pages",
-    "description": "Create dashboard pages to list user reports and view details for a single report, using the data layer in apps/dashboard/lib/data/reports.ts.",
+    "id": "migrate-8-create-astro-pages-and-route-mapping",
+    "title": "Create Astro pages that mirror Next.js routes",
+    "description": "For each Next.js route, create a corresponding .astro file in astro-app/src/pages that uses the MainLayout, performs data loading in frontmatter, and renders the appropriate React page component.",
     "context": {
-      "goal": "Let users browse historical reports via the dashboard app, backed by the same DB used by the generator.",
-      "requirements": [
-        "List view at /dashboard/reports with basic report info.",
-        "Details view at /dashboard/reports/[reportId] with items, scores, etc."
+      "goal": "Replicate the Next.js routing structure in Astro so URLs and page content remain consistent.",
+      "notes": [
+        "Use docs/migration-architecture.md route inventory as the source of truth.",
+        "For dynamic routes, implement Astro getStaticPaths where needed."
       ]
     },
-    "dependencies": ["dash-6-dashboard-layout-and-protection", "dash-7-data-layer-modules"],
+    "dependencies": ["migrate-5-create-base-layout-in-astro", "migrate-7-migrate-page-components-to-react-pages"],
     "artifacts": [
-      { "path": "apps/dashboard/app/(dashboard)/dashboard/reports/page.tsx", "type": "typescript", "required": true },
-      { "path": "apps/dashboard/app/(dashboard)/dashboard/reports/[reportId]/page.tsx", "type": "typescript", "required": true }
+      { "path": "astro-app/src/pages", "type": "directory", "required": true }
     ],
     "commands": [],
     "verification": [
-      "/dashboard/reports shows only reports belonging to the current user.",
-      "/dashboard/reports/[reportId] shows report details only if the report belongs to that user.",
-      "All data fetching is done via apps/dashboard/lib/data/reports.ts and packages/db."
+      "For each original Next.js route, there is a corresponding .astro page.",
+      "Each .astro page imports MainLayout and the relevant React page component, and renders it using client directives where necessary.",
+      "Static routes work; dynamic routes correctly receive params via Astro.params.",
+      "Basic navigation between pages behaves as expected."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-11-page-saved-items",
-    "title": "Implement /dashboard/saved page for saved items",
-    "description": "Create a dashboard page at /dashboard/saved where users can see their saved posts, using the data layer for SavedItem joined with FeedItem and related entities.",
+    "id": "migrate-9-migrate-data-fetching-logic",
+    "title": "Migrate data fetching from getStaticProps/getServerSideProps to Astro frontmatter",
+    "description": "Refactor data fetching logic previously in Next.js getStaticProps/getServerSideProps/getStaticPaths into shared lib functions and call them from Astro page frontmatter.",
     "context": {
-      "goal": "Expose SavedItem functionality to dashboard users as a separate page, independent of generator UI.",
-      "requirements": [
-        "List saved items with titles, sources, and summaries.",
-        "Link out to original URLs and relevant report detail pages."
+      "goal": "Keep data-loading behavior equivalent while using Astro's server-side frontmatter and getStaticPaths APIs.",
+      "notes": [
+        "Move shared data fetch logic into astro-app/src/lib (e.g., lib/reports.ts).",
+        "Astro frontmatter can use await to fetch data.",
+        "Dynamic pages may need getStaticPaths to generate routes at build time."
       ]
     },
-    "dependencies": ["dash-7-data-layer-modules"],
+    "dependencies": ["migrate-1-analyze-next-app", "migrate-8-create-astro-pages-and-route-mapping"],
     "artifacts": [
-      { "path": "apps/dashboard/app/(dashboard)/dashboard/saved/page.tsx", "type": "typescript", "required": true }
+      { "path": "astro-app/src/lib", "type": "directory", "required": true }
     ],
     "commands": [],
     "verification": [
-      "Users see only their own saved items.",
-      "If there are no saved items, an appropriate empty state is shown.",
-      "Links work and no generator code is imported."
+      "No React components depend on getStaticProps or getServerSideProps directly.",
+      "Data-fetching logic lives in astro-app/src/lib and is called from .astro frontmatter.",
+      "Pages that were previously static/SSR behave the same in Astro (same data rendered for the same URL)."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-12-api-ai-helper",
-    "title": "Implement AI helper API endpoint under apps/dashboard/app/api/ai",
-    "description": "Create an AI helper endpoint (e.g., /api/ai/generate-description) in the dashboard app that uses an AI model to generate content suggestions for form fields.",
+    "id": "migrate-10-inventory-and-decide-api-strategy",
+    "title": "Inventory Next.js API routes and decide migration strategy",
+    "description": "Review all Next.js API routes and decide which ones to move into Astro endpoints and which ones to keep or move into a separate backend service.",
     "context": {
-      "goal": "Allow the dashboard to offer AI-assisted content generation (e.g., feed descriptions, report intros) via a dedicated API, independent from the generator pipeline.",
-      "requirements": [
-        "Route under apps/dashboard/app/api/ai/generate-description/route.ts (or similar).",
-        "Validate input and return a stable JSON structure with suggested text.",
-        "Use auth if personalization is needed."
+      "goal": "Have a clear plan for handling API endpoints currently in Next.js.",
+      "notes": [
+        "Some APIs may be tightly coupled to the frontend and can move into Astro.",
+        "More complex or long-running APIs may be better as a standalone backend service."
       ]
     },
-    "dependencies": ["dash-5-setup-authjs"],
+    "dependencies": ["migrate-1-analyze-next-app"],
     "artifacts": [
-      { "path": "apps/dashboard/app/api/ai/generate-description/route.ts", "type": "typescript", "required": true }
+      {
+        "path": "docs/migration-architecture.md",
+        "type": "markdown",
+        "required_sections": ["API Migration Plan"]
+      }
     ],
     "commands": [],
     "verification": [
-      "Unauthenticated requests receive 401/403 if required.",
-      "Valid requests return a JSON payload with a suggested text field.",
-      "The endpoint does not import any generator-specific modules; AI logic is dashboard-scoped or shared via packages/ai if you create one."
+      "API routes are categorized into: move-to-Astro, keep-as-backend, or deprecated.",
+      "docs/migration-architecture.md documents the chosen approach for each route or group."
     ],
-    "status": "completed"
+    "status": "pending"
   },
   {
-    "id": "dash-13-ui-ai-buttons",
-    "title": "Add AI helper buttons to dashboard forms",
-    "description": "Integrate AI helper buttons into relevant dashboard forms (e.g., feed configuration), calling the AI endpoint and populating fields with suggestions.",
+    "id": "migrate-11-implement-astro-api-endpoints",
+    "title": "Implement simple API endpoints in Astro",
+    "description": "For API routes selected to move into Astro, create corresponding endpoint files in astro-app/src/pages/api and implement logic using shared utilities.",
     "context": {
-      "goal": "Make AI-assisted generation a natural part of the dashboard UX without entangling it with the generator app.",
-      "requirements": [
-        "Add 'Generate with AI' buttons next to suitable text fields.",
-        "Handle loading, success, and error states gracefully.",
-        "Use the AI API endpoint under apps/dashboard/app/api/ai."
+      "goal": "Provide equivalent API functionality via Astro endpoints for routes simple enough to move.",
+      "notes": [
+        "Astro endpoints return Response objects.",
+        "Use shared lib functions for business logic to avoid duplication."
       ]
     },
-    "dependencies": ["dash-9-page-feeds-management", "dash-12-api-ai-helper"],
+    "dependencies": ["migrate-10-inventory-and-decide-api-strategy"],
     "artifacts": [
-      { "path": "apps/dashboard/components/feed-form.tsx", "type": "typescript", "required": true }
+      { "path": "astro-app/src/pages/api", "type": "directory", "required": false }
     ],
     "commands": [],
     "verification": [
-      "Clicking the AI button triggers a request to the AI endpoint.",
-      "On success, suggested content appears in the form field.",
-      "Errors are handled with user-friendly feedback (e.g., toast), and the form remains usable."
+      "Astro API endpoints exist for each selected route.",
+      "Frontend code that relied on these endpoints now points to the Astro equivalents (paths and behavior match).",
+      "Endpoints return correct JSON and status codes."
     ],
-    "status": "completed"
+    "status": "pending"
+  },
+  {
+    "id": "migrate-12-migrate-styling-and-assets",
+    "title": "Migrate all styling and static assets to Astro",
+    "description": "Move global CSS, Tailwind config, and static assets (images, fonts, etc.) from Next.js to Astro, and ensure all visual aspects match the original app.",
+    "context": {
+      "goal": "Ensure the Astro app looks visually identical (or close) to the original Next.js app.",
+      "notes": [
+        "Public assets in Next.js (/public) should be moved to astro-app/public.",
+        "Check that paths referenced in code and CSS are still valid."
+      ]
+    },
+    "dependencies": ["migrate-4-setup-tailwind-and-global-styles"],
+    "artifacts": [
+      { "path": "astro-app/public", "type": "directory", "required": true },
+      { "path": "astro-app/src/styles", "type": "directory", "required": false }
+    ],
+    "commands": [],
+    "verification": [
+      "All images, icons, and fonts used in the Next.js app are available in astro-app/public.",
+      "Global styles are applied and pages visually match the Next.js version.",
+      "No broken asset URLs in the browser console."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "migrate-13-page-by-page-visual-and-functional-QA",
+    "title": "Compare Astro pages with original Next.js pages",
+    "description": "Manually or semi-automatically compare each migrated Astro page against the original Next.js page to ensure that content, layout, and core interactions match.",
+    "context": {
+      "goal": "Validate that the migration preserved user-facing behavior and layout.",
+      "notes": [
+        "Focus on critical flows first (home page, main lists, detail pages).",
+        "Check SEO-relevant elements (title, meta, canonical) where applicable."
+      ]
+    },
+    "dependencies": ["migrate-8-create-astro-pages-and-route-mapping", "migrate-9-migrate-data-fetching-logic", "migrate-12-migrate-styling-and-assets"],
+    "artifacts": [
+      { "path": "docs/migration-checklist.md", "type": "markdown", "required_sections": ["Page QA Results"] }
+    ],
+    "commands": [],
+    "verification": [
+      "For each important route, docs/migration-checklist.md notes that the Astro page has been checked and is acceptable or highlights deviations.",
+      "No major functional regressions in navigation or data display for key pages."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "migrate-14-remove-next-specific-dependencies-and-code",
+    "title": "Remove unused Next.js-specific code and dependencies",
+    "description": "Once the Astro app is validated, remove Next.js-specific files and dependencies (next, next/link, next/image, next.config.js, etc.) from the repo, or archive the old project if kept for reference.",
+    "context": {
+      "goal": "Clean up the codebase so Astro is the only frontend framework in use.",
+      "notes": [
+        "If you want to keep a record of the Next.js app, you can move it to an archive directory or separate branch.",
+        "Update package.json to remove Next-related dependencies if not used elsewhere."
+      ]
+    },
+    "dependencies": ["migrate-13-page-by-page-visual-and-functional-QA"],
+    "artifacts": [
+      { "path": "next-app", "type": "directory", "required": false },
+      { "path": "package.json", "type": "json", "required": true }
+    ],
+    "commands": [],
+    "verification": [
+      "No references to 'next', 'next/link', or 'next/image' remain in the active codebase.",
+      "Next.js-specific config files (next.config.js, next-env.d.ts) are removed or quarantined.",
+      "The Astro app builds and runs without any Next.js dependencies."
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "migrate-15-update-deployment-config",
+    "title": "Update deployment configuration to use Astro app",
+    "description": "Adjust deployment scripts, CI/CD pipelines, and hosting configuration to deploy the Astro app instead of the Next.js app.",
+    "context": {
+      "goal": "Ensure the production environment serves the Astro app and no longer depends on the Next.js build.",
+      "notes": [
+        "If using a platform like Vercel or Netlify, update the project settings to point to astro-app.",
+        "Update build and start commands in deployment configuration."
+      ]
+    },
+    "dependencies": ["migrate-14-remove-next-specific-dependencies-and-code"],
+    "artifacts": [
+      { "path": ".github/workflows", "type": "directory", "required": false },
+      { "path": "vercel.json", "type": "json", "required": false },
+      { "path": "netlify.toml", "type": "toml", "required": false }
+    ],
+    "commands": [],
+    "verification": [
+      "CI/CD pipelines build and deploy the Astro app successfully.",
+      "Production URL now serves the Astro app.",
+      "No deployment step tries to build or run the old Next.js app."
+    ],
+    "status": "pending"
   }
 ]

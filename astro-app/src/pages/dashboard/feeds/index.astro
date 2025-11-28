@@ -1,0 +1,15 @@
+---
+import MainLayout from '../../../layouts/MainLayout.astro';
+import { FeedsPage } from '../../../react/pages/FeedsPage';
+import { listSources } from '../../../lib/data/sources';
+import { requireUser } from '../../../lib/auth';
+
+export const prerender = false;
+
+const session = await requireUser();
+const feeds = await listSources(session.user?.id ?? "");
+---
+
+<MainLayout title="Feeds">
+  <FeedsPage client:load userSlug={session.user?.slug} feeds={feeds} />
+</MainLayout>

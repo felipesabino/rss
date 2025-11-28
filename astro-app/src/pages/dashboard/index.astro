@@ -1,0 +1,12 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import { DashboardPage } from '../../react/pages/DashboardPage';
+import { requireUser } from '../../lib/auth';
+
+const session = await requireUser();
+const userSlug = session.user?.slug ?? "user";
+---
+
+<MainLayout title="Dashboard">
+  <DashboardPage userSlug={userSlug} />
+</MainLayout>

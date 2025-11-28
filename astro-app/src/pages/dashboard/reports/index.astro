@@ -1,0 +1,15 @@
+---
+import MainLayout from '../../../layouts/MainLayout.astro';
+import { ReportsPage } from '../../../react/pages/ReportsPage';
+import { listReports } from '../../../lib/data/reports';
+import { requireUser } from '../../../lib/auth';
+
+export const prerender = false;
+
+const session = await requireUser();
+const reports = await listReports(session.user?.id ?? "");
+---
+
+<MainLayout title="Reports">
+  <ReportsPage client:load userSlug={session.user?.slug} reports={reports} />
+</MainLayout>
