@@ -45,6 +45,9 @@ export async function searchGoogleForQuery(query: string, num: number = 10, date
                 pubDate: extractPublishedAt(item)
             };
         });
+        if (items.length === 0) {
+            console.log(`Google search returned 0 items. response: ${JSON.stringfy(response)}`);
+        }
     } catch (error: any) {
         const msg = error.response?.data?.error?.message || error.message;
         console.warn(`Google search failed for "${query}": ${msg}`);
