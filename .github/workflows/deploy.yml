@@ -6,7 +6,8 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    - cron: "0 4,14 * * *"   # <=== Runs daily at 6 and 16 CET
+    - cron: "0 4,14 * * 1-5"   # <=== Runs daily at 6 and 16 CET on weekdays
+    - cron: "0 4 * * 0,6"   # <=== Runs at 6 and 16 CET on weekends
   workflow_dispatch:
 
 jobs:
