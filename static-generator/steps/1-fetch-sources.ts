@@ -110,7 +110,9 @@ export async function fetchAllSources(): Promise<void> {
         link: item.link,
         pubDate: item.pubDate,
         content: item.content,
-        comments: item.comments
+        comments: item.comments,
+        points: item.points,
+        commentCount: item.commentCount
       }));
     } catch (err: any) {
       console.error(`Failed to fetch source ${source.name}: ${err.message}`);

@@ -80,7 +80,7 @@ describe('OpenAI service', () => {
         choices: [
           {
             message: {
-              parsed: { summary: 'Concise summary', isPositive: true }
+              parsed: { summary: 'Concise summary', eli5: 'Quick hit', sentiment: 'Positive', tags: ['cloud', 'ai'] }
             }
           }
         ]
@@ -104,7 +104,7 @@ describe('OpenAI service', () => {
         }),
         { timeout: 15 * 60 * 1000, maxRetries: 3 }
       );
-      expect(response).toEqual({ summary: 'Concise summary', isPositive: true });
+      expect(response).toEqual({ summary: 'Concise summary', eli5: 'Quick hit', sentiment: 'Positive', tags: ['cloud', 'ai'] });
     });
 
     it('falls back to title context for very short text', async () => {
@@ -112,7 +112,7 @@ describe('OpenAI service', () => {
         choices: [
           {
             message: {
-              parsed: { summary: 'ok', isPositive: false }
+              parsed: { summary: 'ok', eli5: 'brief', sentiment: 'Mixed', tags: ['tech', 'news'] }
             }
           }
         ]
@@ -129,7 +129,7 @@ describe('OpenAI service', () => {
         choices: [
           {
             message: {
-              parsed: { summary: 'ok', isPositive: false }
+              parsed: { summary: 'ok', eli5: 'brief', sentiment: 'Negative', tags: ['overflow', 'test'] }
             }
           }
         ]
@@ -146,7 +146,9 @@ describe('OpenAI service', () => {
       const result = await analyzeItem('content', 'Title');
       expect(result).toEqual({
         summary: 'Summary not available (API key not configured).',
-        isPositive: false
+        eli5: 'Summary not available.',
+        sentiment: 'Mixed',
+        tags: []
       });
       expect(openAIMocks.parse).not.toHaveBeenCalled();
     });
@@ -156,7 +158,9 @@ describe('OpenAI service', () => {
       const result = await analyzeItem('content'.repeat(100), 'Title');
       expect(result).toEqual({
         summary: 'Error generating summary.',
-        isPositive: false
+        eli5: 'ELI5 unavailable.',
+        sentiment: 'Mixed',
+        tags: []
       });
     });
   });

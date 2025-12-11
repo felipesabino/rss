@@ -1,5 +1,5 @@
 import { contentExtractor } from './content';
-import { summarizeText, analyzeSentiment } from './openai';
+import { summarizeText } from './openai';
 import { sources } from '../../config/sources';
 import { loadCache, saveCache, cleanCache, Cache, saveRenderCache, loadRenderCache, CacheItem } from './cache';
 import { parseFeedWithMetadata, FeedMetadata } from './feed-parser';
@@ -17,7 +17,7 @@ export interface Item {
   published: Date;
   hasSummary: boolean;
   commentsUrl?: string;  // Field for Hacker News comments URL
-  isPositive?: boolean;  // Field for sentiment analysis result
+  sentiment?: 'Positive' | 'Negative' | 'Mixed';
   mediaType?: string;    // Field for media type (image, video, audio, document, etc.)
   mediaUrl?: string;     // Field for media URL (for embedded content)
 }
@@ -50,12 +50,12 @@ function getCachedItem(cache: Cache, url: string): CacheItem | null {
 /**
  * Add or update an item in the in-memory cache
  */
-function setCachedItem(cache: Cache, url: string, content: string, summary?: string, isPositive?: boolean, mediaType?: string, mediaUrl?: string): void {
+function setCachedItem(cache: Cache, url: string, content: string, summary?: string, mediaType?: string, mediaUrl?: string, sentiment?: 'Positive' | 'Negative' | 'Mixed'): void {
   itemsCache[url] = {
     url,
     content,
     summary,
-    isPositive,
+    sentiment,
     mediaType,
     mediaUrl: mediaUrl || url,
     timestamp: Date.now()
@@ -172,7 +172,7 @@ export async function fetchSource(sourceConfig: typeof sources[0]): Promise<void
         let content = '';
         let summary: string | undefined;
         let hasSummary = false;
-        let isPositive: boolean | undefined;
+        let sentiment: 'Positive' | 'Negative' | 'Mixed' | undefined;
 
         const cachedItem = getCachedItem(cache, url);
 
@@ -180,7 +180,7 @@ export async function fetchSource(sourceConfig: typeof sources[0]): Promise<void
           console.log(`Using cached content for: ${url}`);
           content = cachedItem.content;
           summary = cachedItem.summary;
-          isPositive = cachedItem.isPositive;
+          sentiment = cachedItem.sentiment;
           hasSummary = !!summary;
         } else {
           console.log(`Fetching content for: ${url}`);
@@ -191,13 +191,11 @@ export async function fetchSource(sourceConfig: typeof sources[0]): Promise<void
             // If content extraction was skipped, assume it's not positive and skip sentiment analysis
             if (contentResult.skipReason) {
               console.log(`Content extraction skipped: ${contentResult.skipReason}`);
-              console.log(`Skipping sentiment analysis for non-text content. Defaulting to not positive.`);
+              console.log(`Skipping sentiment analysis for non-text content. Defaulting to mixed.`);
 
               // Skip summarization for non-text content
               hasSummary = false;
-
-              // Default to not positive for non-text content
-              isPositive = false;
+              sentiment = 'Mixed';
 
               // Get the media type and URL
               const mediaType = contentResult.mediaType || 'unknown';
@@ -205,7 +203,7 @@ export async function fetchSource(sourceConfig: typeof sources[0]): Promise<void
               console.log(`Media type detected: ${mediaType}, Media URL: ${mediaUrl}`);
 
               // Cache the result with skip reason, default sentiment, media type, and media URL
-              setCachedItem(cache, url, `[SKIPPED: ${contentResult.skipReason}]`, undefined, isPositive, mediaType, mediaUrl);
+              setCachedItem(cache, url, `[SKIPPED: ${contentResult.skipReason}]`, undefined, mediaType, mediaUrl, sentiment);
             } else {
               // Only summarize if content is substantial
               const shouldSummarize = content.length > 500;
@@ -214,44 +212,32 @@ export async function fetchSource(sourceConfig: typeof sources[0]): Promise<void
                 try {
                   summary = await summarizeText(content);
                   hasSummary = true;
+                  sentiment = 'Mixed';
 
-                  // Analyze sentiment using the summary to save tokens
-                  try {
-                    console.log(`Starting sentiment analysis using summary for item: "${item.title!.substring(0, 50)}..."`);
-                    isPositive = await analyzeSentiment(summary);
-                    console.log(`Sentiment analysis completed for "${item.title!}": ${isPositive ? 'Positive ✅' : 'Negative/Neutral ❌'}`);
-
-                    // Cache the content, summary, and sentiment
-                    setCachedItem(cache, url, content, summary, isPositive, undefined, url);
-                  } catch (err: any) {
-                    console.error(`Failed to analyze sentiment: ${err.message}`);
-
-                    // Cache without sentiment (will be treated as neutral)
-                    isPositive = false;
-                    setCachedItem(cache, url, content, summary, isPositive, undefined, url);
-                  }
+                  // Cache the content, summary, and sentiment
+                  setCachedItem(cache, url, content, summary, undefined, url, sentiment);
                 } catch (err: any) {
                   console.error(`Failed to summarize item: ${err.message}`);
 
                   // If summarization fails, consider it neutral
-                  isPositive = false;
-                  setCachedItem(cache, url, content, undefined, isPositive, undefined, url);
+                  sentiment = 'Mixed';
+                  setCachedItem(cache, url, content, undefined, undefined, url, sentiment);
                 }
               } else {
                 // For short content, we don't have a summary, so we consider it neutral
-                isPositive = false;
-                setCachedItem(cache, url, content, undefined, isPositive, undefined, url);
+                sentiment = 'Mixed';
+                setCachedItem(cache, url, content, undefined, undefined, url, sentiment);
               }
             }
           } catch (err: any) {
             console.error(`Failed to extract content: ${err.message}`);
 
-            // For content extraction failures, default to not positive
-            console.log(`Content extraction failed. Skipping sentiment analysis and defaulting to not positive.`);
-            isPositive = false;
+            // For content extraction failures, default to mixed
+            console.log(`Content extraction failed. Skipping sentiment analysis and defaulting to mixed.`);
+            sentiment = 'Mixed';
 
             // Cache the error result with default sentiment, unknown media type, and original URL
-            setCachedItem(cache, url, `[ERROR: Content extraction failed]`, undefined, isPositive, 'error', url);
+            setCachedItem(cache, url, `[ERROR: Content extraction failed]`, undefined, 'error', url, sentiment);
 
             continue;
           }
@@ -275,7 +261,7 @@ export async function fetchSource(sourceConfig: typeof sources[0]): Promise<void
           published: item.pubDate ? parseDate(item.pubDate) : new Date(),
           hasSummary,
           commentsUrl: item.comments,  // Extract comments URL from feed item
-          isPositive: isPositive,      // Add sentiment analysis result
+          sentiment,
           mediaType: mediaType,        // Add media type
           mediaUrl: mediaUrl           // Add media URL
         };

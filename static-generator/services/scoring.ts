@@ -267,7 +267,7 @@ function scoreItemAgainstInstruction(item: AIProcessedItem, profile: Instruction
     const relevanceScore = Math.min(1, matchedWeight / (profile.totalWeight * 3));
 
     const summaryBoost = item.hasSummary ? 0.05 : 0;
-    const sentimentBoost = item.isPositive ? 0.05 : 0;
+    const sentimentBoost = item.sentiment === 'Positive' ? 0.05 : 0;
 
     const blended = (relevanceScore * 0.65) + (recencyScore * 0.25) + summaryBoost + sentimentBoost;
     const rankingScore = Math.max(0, Math.min(100, blended * 100));

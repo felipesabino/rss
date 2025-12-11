@@ -11,18 +11,25 @@
 <body>
   <div class="container">
     <div class="header">
-      <div class="header-top">
-        <h1>Brutalist Report knock-off</h1>
-        <div class="header-buttons">
-          <button id="goodVibesToggle" class="good-vibes-toggle">Good Vibes Only</button>
-          <button id="darkModeToggle" class="dark-mode-toggle">🌙</button>
+      <div class="hero">
+          <div class="hero-top">
+            <div>
+              <p class="eyebrow">Daily feed digest</p>
+              <h1>What Happened, remixed</h1>
+              <p class="updated-at">Last updated <%= new Date().toLocaleDateString('en-US', { weekday: 'long' , month:
+                'long' , day: 'numeric' , year: 'numeric' , timeZone: 'UTC' }) %>
+                <%= new Date().toLocaleTimeString('en-US', { hour: 'numeric' , minute: '2-digit' , hour12: true,
+                  timeZone: 'UTC' }) %> (UTC).</p>
+          </div>
+          <div class="header-buttons">
+            <button id="layoutToggle" class="layout-toggle" aria-pressed="false">List View</button>
+            <button id="goodVibesToggle" class="good-vibes-toggle">Good Vibes Only</button>
+            <button id="darkModeToggle" class="dark-mode-toggle">🌙</button>
+          </div>
         </div>
+        <p class="hero-subtitle">A clean, linear scroll of everything pulled from your feeds. No blocks, no rainbow
+          grid—just stacked stories with a hint of orange.</p>
       </div>
-      <p class="updated-at">The day's headlines delivered to you without bullshit. Last updated <%= new
-          Date().toLocaleDateString('en-US', { weekday: 'long' , month: 'long' , day: 'numeric' , year: 'numeric' ,
-          timeZone: 'UTC' }) %>
-          <%= new Date().toLocaleTimeString('en-US', { hour: 'numeric' , minute: '2-digit' , hour12: true,
-            timeZone: 'UTC' }) %> (UTC).</p>
     </div>
 
     <div class="category-filter">
@@ -140,46 +147,53 @@
     <div class="feeds-container">
       <% feeds.forEach(function(feed) { %>
         <div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
-          <h3 class="feed-title">
-            <a href="<%= feedMetadata[feed.id]?.siteUrl || feed.url.replace(/\/rss\/?.*$|\.rss$|\/feed\/?.*$|\.xml$/, '/') %>"
-              target="_blank" rel="noopener noreferrer" class="feed-title-link">
-              <% if (feedMetadata[feed.id]?.iconUrl) { %>
-                <img src="<%= feedMetadata[feed.id].iconUrl %>" alt="<%= feed.name %> icon" class="feed-icon" />
-                <% } else { let hostname='google.com' ; try { if (feed.url) hostname=new URL(feed.url).hostname; else if
-                  (feedMetadata[feed.id]?.siteUrl) hostname=new URL(feedMetadata[feed.id].siteUrl).hostname; } catch (e)
-                  {} %>
-                  <img src="https://www.google.com/s2/favicons?domain=<%= hostname %>" alt="<%= feed.name %> icon"
-                    class="feed-icon" />
-                  <% } %>
-                    <%= feed.name %>
-            </a>
-          </h3>
+          <div class="feed-header">
+            <div class="feed-title">
+              <a href="<%= feedMetadata[feed.id]?.siteUrl || feed.url.replace(/\/rss\/?.*$|\.rss$|\/feed\/?.*$|\.xml$/, '/') %>"
+                target="_blank" rel="noopener noreferrer" class="feed-title-link">
+                <% if (feedMetadata[feed.id]?.iconUrl) { %>
+                  <img src="<%= feedMetadata[feed.id].iconUrl %>" alt="<%= feed.name %> icon" class="feed-icon" />
+                  <% } else { let hostname='google.com' ; try { if (feed.url) hostname=new URL(feed.url).hostname; else
+                    if (feedMetadata[feed.id]?.siteUrl) hostname=new URL(feedMetadata[feed.id].siteUrl).hostname; }
+                    catch (e) {} %>
+                    <img src="https://www.google.com/s2/favicons?domain=<%= hostname %>" alt="<%= feed.name %> icon"
+                      class="feed-icon" />
+                    <% } %>
+                      <span class="feed-name"><%= feed.name %></span>
+              </a>
+            </div>
+            <div class="feed-meta">
+              <span class="feed-domain">
+                <% let domainLabel=''; try { if (feedMetadata[feed.id]?.siteUrl) { domainLabel=new
+                  URL(feedMetadata[feed.id].siteUrl).hostname; } else if (feed.url) { domainLabel=new
+                  URL(feed.url).hostname; } } catch (e) {} %>
+                  <%= domainLabel || 'feed' %>
+              </span>
+            </div>
+          </div>
           <div class="feed-items">
             <% if (itemsByFeed[feed.id] && itemsByFeed[feed.id].length) { %>
               <% itemsByFeed[feed.id].forEach(function(item) { 
                    const usageCategories = (reportUsageMap && reportUsageMap[item.id]) || [];
+                   const hasExpandableMedia = item.mediaType === 'image' || item.mediaType === 'video';
+                   const itemTags = (item.tags && item.tags.length) ? item.tags : (feed.categories || []);
               %>
-                <div class="feed-item" data-positive="<%= item.isPositive === true ? 'true' : 'false' %>" data-report-categories="<%= usageCategories.map(cat => encodeURIComponent(cat)).join(' ') %>">
+                <div class="feed-item" data-sentiment="<%= (item.sentiment || 'unknown').toLowerCase() %>" data-report-categories="<%= usageCategories.map(cat => encodeURIComponent(cat)).join(' ') %>">
                   <% /* Debug info: */ %>
-                    <!-- Item ID: <%= item.id %>, isPositive: <%= item.isPositive %> -->
+                    <!-- Item ID: <%= item.id %>, sentiment: <%= item.sentiment %> -->
                     <div class="feed-item-header">
-                      <% if (usageCategories.length) { %>
-                        <span class="feed-item-report-star" title="Used in this category's News Brief">⭐️</span>
-                      <% } %>
-                      <a href="<%= item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-link">
-                        <%= item.title %>
-                      </a>
-                      <% if (item.published) { %>
-                        <span class="feed-item-date">
-                          (<%= formatDate(new Date(item.published)) %>)
-                        </span>
+                      <div class="feed-item-main">
+                        <% if (usageCategories.length) { %>
+                          <span class="feed-item-report-star" title="Used in this category's News Brief">⭐️</span>
                         <% } %>
-                          <% if (item.commentsUrl) { %>
-                            <a href="<%= item.commentsUrl %>" target="_blank" rel="noopener noreferrer"
-                              class="feed-item-comments-link">
-                              [hn]
-                            </a>
-                            <% } %>
+                        <a href="<%= item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-link">
+                          <%= item.title %>
+                        </a>
+                        <% if (item.published) { %>
+                          <span class="feed-item-date">
+                            (<%= formatDate(new Date(item.published)) %>)
+                          </span>
+                          <% } %>
                               <% if (item.hasSummary) { %>
                                 <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[toggle ai
                                   summary]</span>
@@ -189,13 +203,6 @@
                                     title="Click to toggle embedded image. Click the image to open in new tab.">
                                     [🖼️ image]
                                   </span>
-                                  <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
-                                    <a href="<%= item.mediaUrl || item.url %>" target="_blank"
-                                      rel="noopener noreferrer">
-                                      <img src="<%= item.mediaUrl || item.url %>" alt="Embedded image"
-                                        style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc; cursor: pointer;">
-                                    </a>
-                                  </span>
                                   <% } else if (item.mediaType==="video" && (item.mediaUrl ||
                                     item.url).includes("youtube.com/watch") || (item.mediaUrl ||
                                     item.url).includes("youtu.be/")) { %>
@@ -203,30 +210,11 @@
                                       data-item-id="<%= item.id %>">
                                       [🎬 video]
                                     </span>
-                                    <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
-                                      <% /* Extract YouTube video ID */ let ytId=null; try { const url=new
-                                        URL(item.mediaUrl || item.url); if (url.hostname.includes("youtube.com")) {
-                                        ytId=url.searchParams.get("v"); } else if (url.hostname.includes("youtu.be")) {
-                                        ytId=url.pathname.replace("/", "" ); } } catch (e) {} %>
-                                        <% if (ytId) { %>
-                                          <iframe width="400" height="225"
-                                            src="https://www.youtube.com/embed/<%= ytId %>" frameborder="0"
-                                            allowfullscreen
-                                            style="margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></iframe>
-                                          <% } else { %>
-                                            <a href="<%= item.mediaUrl || item.url %>" target="_blank"
-                                              rel="noopener noreferrer">Open video</a>
-                                            <% } %>
-                                    </span>
                                     <% } else if (item.mediaType==="video" ) { %>
                                       <span
                                         class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle"
                                         data-item-id="<%= item.id %>">
                                         [🎬 video]
-                                      </span>
-                                      <span class="feed-item-media-embed hidden" id="media-<%= item.id %>">
-                                        <video src="<%= item.mediaUrl || item.url %>" controls
-                                          style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></video>
                                       </span>
                                       <% } else if (item.mediaType && !['text', 'short-text' ].includes(item.mediaType))
                                         { %>
@@ -247,22 +235,98 @@
                                             <span class="feed-item-summary-not-available"
                                               data-item-id="<%= item.id %>">[no summary available]</span>
                                             <% } %>
-                                              <% if (item.isPositive===true) { %>
-                                                <span class="feed-item-sentiment positive"
-                                                  title="Positive content">💯</span>
-                                                <% } else if (item.isPositive===false) { %>
-                                                  <span class="feed-item-sentiment negative"
-                                                    title="Neutral or negative content">❗️</span>
-                                                  <% } else { %>
-                                                    <span class="feed-item-sentiment unknown"
-                                                      title="Sentiment not analyzed">❓</span>
-                                                    <% } %>
+                      </div>
+                      <% if (itemTags && itemTags.length) { %>
+                        <div class="feed-item-tags" aria-label="Tags">
+                          <% itemTags.forEach(function(tag) { %>
+                            <span class="feed-item-tag"><%= tag %></span>
+                          <% }); %>
+                        </div>
+                      <% } %>
+                      <div class="feed-item-actions">
+                        <a href="<%= item.url %>" target="_blank" rel="noopener noreferrer"
+                          class="feed-item-open-link" aria-label="Open item">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <path d="M15 3h6v6"></path>
+                            <path d="M10 14 21 3"></path>
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          </svg>
+                        </a>
+                        <% if (item.commentsUrl) { %>
+                          <a href="<%= item.commentsUrl %>" target="_blank" rel="noopener noreferrer"
+                            class="feed-item-comments-link" aria-label="Open Hacker News discussion">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square w-4 h-4 text-orange-500" aria-hidden="true"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path></svg>
+                          </a>
+                        <% } %>
+                        <% if (item.sentiment==='Positive') { %>
+                          <span class="feed-item-sentiment positive" title="Positive content">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" aria-hidden="true">
+                              <circle cx="6" cy="6" r="5"></circle>
+                            </svg>
+                          </span>
+                        <% } else if (item.sentiment==='Negative') { %>
+                          <span class="feed-item-sentiment negative" title="Neutral or negative content">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" aria-hidden="true">
+                              <circle cx="6" cy="6" r="5"></circle>
+                            </svg>
+                          </span>
+                        <% } else if (item.sentiment==='Mixed') { %>
+                          <span class="feed-item-sentiment mixed" title="Mixed sentiment">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" aria-hidden="true">
+                              <circle cx="6" cy="6" r="5"></circle>
+                            </svg>
+                          </span>
+                        <% } else { %>
+                          <span class="feed-item-sentiment unknown" title="Sentiment not analyzed">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" aria-hidden="true">
+                              <circle cx="6" cy="6" r="5"></circle>
+                            </svg>
+                          </span>
+                        <% } %>
+                        <% if (item.summary || hasExpandableMedia) { %>
+                          <span class="feed-item-toggle-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+                          </span>
+                        <% } %>
+                      </div>
                     </div>
                     <% if (item.summary) { %>
-                      <div class="feed-item-summary hidden" id="summary-<%= item.id %>">
+                      <div class="feed-item-summary" id="summary-<%= item.id %>">
                         <%= item.summary %>
                       </div>
                       <% } %>
+                    <% if (item.mediaType==="image" ) { %>
+                      <span class="feed-item-media-embed" id="media-<%= item.id %>">
+                        <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer">
+                          <img src="<%= item.mediaUrl || item.url %>" alt="Embedded image"
+                            style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc; cursor: pointer;">
+                        </a>
+                      </span>
+                    <% } else if (item.mediaType==="video" && (item.mediaUrl ||
+                      item.url).includes("youtube.com/watch") || (item.mediaUrl ||
+                      item.url).includes("youtu.be/")) { %>
+                      <span class="feed-item-media-embed" id="media-<%= item.id %>">
+                        <% /* Extract YouTube video ID */ let ytId=null; try { const url=new
+                          URL(item.mediaUrl || item.url); if (url.hostname.includes("youtube.com")) {
+                          ytId=url.searchParams.get("v"); } else if (url.hostname.includes("youtu.be")) {
+                          ytId=url.pathname.replace("/", "" ); } } catch (e) {} %>
+                          <% if (ytId) { %>
+                            <iframe width="400" height="225"
+                              src="https://www.youtube.com/embed/<%= ytId %>" frameborder="0" allowfullscreen
+                              style="margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></iframe>
+                            <% } else { %>
+                              <a href="<%= item.mediaUrl || item.url %>" target="_blank"
+                                rel="noopener noreferrer">Open video</a>
+                              <% } %>
+                      </span>
+                    <% } else if (item.mediaType==="video" ) { %>
+                      <span class="feed-item-media-embed" id="media-<%= item.id %>">
+                        <video src="<%= item.mediaUrl || item.url %>" controls
+                          style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></video>
+                      </span>
+                    <% } %>
                 </div>
                 <% }); %>
                   <% } else { %>
@@ -290,21 +354,34 @@
 
     // Toggle media embed visibility
     document.addEventListener('DOMContentLoaded', function () {
+      const body = document.body;
+
       document.querySelectorAll('.feed-item-media-toggle').forEach(function (element) {
         element.addEventListener('click', function () {
           const itemId = this.getAttribute('data-item-id');
           const mediaElement = document.getElementById('media-' + itemId);
-          if (mediaElement) {
-            mediaElement.classList.toggle('hidden');
+          if (!mediaElement) {
+            return;
           }
+
+          const isList = body.classList.contains('list-layout');
+
+          // In card/grid view, keep media visible by default
+          if (!isList) {
+            mediaElement.classList.remove('hidden');
+            return;
+          }
+
+          mediaElement.classList.toggle('hidden');
         });
       });
       // Dark mode toggle functionality
       const darkModeToggle = document.getElementById('darkModeToggle');
-      const body = document.body;
+      const layoutToggle = document.getElementById('layoutToggle');
 
       // Check for saved preference
       const isDarkMode = localStorage.getItem('darkMode') === 'true';
+      let layoutMode = localStorage.getItem('layoutMode') || 'grid';
 
       // Set initial state
       if (isDarkMode) {
@@ -312,12 +389,22 @@
         darkModeToggle.textContent = '☀️';
       }
 
+      applyLayoutMode(layoutMode);
+
       // Toggle dark mode
       darkModeToggle.addEventListener('click', function () {
         const isDark = body.classList.toggle('dark-mode');
         darkModeToggle.textContent = isDark ? '☀️' : '🌙';
         localStorage.setItem('darkMode', isDark);
       });
+
+      if (layoutToggle) {
+        layoutToggle.addEventListener('click', function () {
+          layoutMode = layoutMode === 'grid' ? 'list' : 'grid';
+          localStorage.setItem('layoutMode', layoutMode);
+          applyLayoutMode(layoutMode);
+        });
+      }
 
       // Good Vibes Only toggle functionality
       const goodVibesToggle = document.getElementById('goodVibesToggle');
@@ -351,11 +438,12 @@
         let negativeCount = 0;
 
         feedItems.forEach(function (item) {
-          const isPositive = item.getAttribute('data-positive') === 'true';
+          const sentiment = (item.getAttribute('data-sentiment') || '').toLowerCase();
+          const isPositive = sentiment === 'positive';
 
           if (debugMode) {
             const itemTitle = item.querySelector('.feed-item-link').textContent.trim();
-            console.log(`Item: "${itemTitle.substring(0, 30)}...", isPositive: ${isPositive}`);
+            console.log(`Item: "${itemTitle.substring(0, 30)}...", sentiment: ${sentiment}`);
           }
 
           if (isPositive) {
@@ -413,16 +501,101 @@
         });
       }
 
-      // Add click event listeners to all summary toggle elements
-      document.querySelectorAll('.feed-item-summary-toggle').forEach(function (element) {
-        element.addEventListener('click', function () {
-          const itemId = this.getAttribute('data-item-id');
-          const summaryElement = document.getElementById('summary-' + itemId);
-          if (summaryElement) {
-            summaryElement.classList.toggle('hidden');
+      function applyLayoutMode(mode) {
+        const isList = mode === 'list';
+        body.classList.toggle('list-layout', isList);
+        updateSummariesForLayout(isList);
+        updateMediaForLayout(isList);
+        setupListExpansion();
+        if (layoutToggle) {
+          layoutToggle.textContent = isList ? 'Card View' : 'List View';
+          layoutToggle.classList.toggle('active', isList);
+          layoutToggle.setAttribute('aria-pressed', isList ? 'true' : 'false');
+        }
+      }
+
+      function updateSummariesForLayout(isList) {
+        const toggles = document.querySelectorAll('.feed-item-summary-toggle');
+        const summaries = document.querySelectorAll('.feed-item-summary');
+        const feedItems = document.querySelectorAll('.feed-item');
+
+        // Hide legacy text toggles in all layouts
+        toggles.forEach(toggle => toggle.classList.add('hidden'));
+
+        // Ensure summaries are present for animation-based show/hide
+        summaries.forEach(summary => summary.classList.remove('hidden'));
+
+        // Default collapsed in list layout, fully expanded in grid/card
+        if (!isList) {
+          feedItems.forEach(item => item.classList.remove('expanded'));
+        } else {
+          feedItems.forEach(item => item.classList.remove('expanded'));
+        }
+      }
+
+      function updateMediaForLayout(isList) {
+        const mediaEmbeds = document.querySelectorAll('.feed-item-media-embed');
+        mediaEmbeds.forEach(embed => {
+          // Always surface media in card/grid view
+          if (!isList) {
+            embed.classList.remove('hidden');
+            return;
           }
+
+          // For list view, collapse by default (CSS handles transition),
+          // but ensure any lingering hidden class does not block expansion.
+          embed.classList.remove('hidden');
         });
-      });
+      }
+
+      function setupListExpansion() {
+        const isList = body.classList.contains('list-layout');
+
+        document.querySelectorAll('.feed-item').forEach(item => {
+          const header = item.querySelector('.feed-item-header');
+          const summary = item.querySelector('.feed-item-summary');
+          const mediaEmbed = item.querySelector('.feed-item-media-embed');
+          const toggleIcon = item.querySelector('.feed-item-toggle-icon');
+          const isExpandable = Boolean(summary || mediaEmbed);
+
+          if (!header || !isExpandable) {
+            return;
+          }
+
+          // Only show the chevron in list layout
+          if (toggleIcon) {
+            toggleIcon.style.visibility = isList ? 'visible' : 'hidden';
+          }
+
+          if (item.dataset.summaryBound === 'true') {
+            return;
+          }
+          item.dataset.summaryBound = 'true';
+
+          header.addEventListener('click', function (evt) {
+            if (!body.classList.contains('list-layout')) {
+              return;
+            }
+
+            const clickedToggle = evt.target.closest('.feed-item-toggle-icon');
+            const clickedActionLink = evt.target.closest('.feed-item-actions a');
+            const clickedSentiment = evt.target.closest('.feed-item-sentiment');
+            const clickedTitleLink = evt.target.closest('.feed-item-link');
+
+            if (clickedActionLink || clickedSentiment || clickedTitleLink) {
+              return;
+            }
+
+            if (clickedToggle) {
+              item.classList.toggle('expanded');
+              return;
+            }
+
+            // Allow header clicks (outside of links/icons) to toggle
+            item.classList.toggle('expanded');
+          });
+        });
+      }
 
       // Category filter functionality
       const categoryItems = document.querySelectorAll('.category-item');
