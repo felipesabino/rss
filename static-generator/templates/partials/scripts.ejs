@@ -78,8 +78,7 @@
       if (defaultTabSelect) {
         defaultTabSelect.addEventListener('change', function (event) {
           const nextPreference = event.target.value || 'tldr';
-          summaryTabPreference = nextPreference;
-          setSummaryPreference(summaryTabPreference, true);
+          applyDefaultSummaryPreference(nextPreference, true);
         });
       }
 
@@ -272,32 +271,35 @@
         }
       }
 
-      function setSummaryPreference(preference, shouldPersist) {
+      function setSummaryForContainer(container, preference) {
+        const tabs = container.querySelectorAll('.summary-tab');
+        const panels = container.querySelectorAll('.summary-panel');
+
+        if (!tabs.length || !panels.length) {
+          return;
+        }
+
+        const availablePanels = Array.from(panels).map(panel => panel.dataset.panel);
+        const nextTarget = availablePanels.includes(preference) ? preference : availablePanels[0];
+
+        tabs.forEach(tab => {
+          const isActive = tab.dataset.target === nextTarget;
+          tab.classList.toggle('active', isActive);
+          tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          tab.setAttribute('tabindex', isActive ? '0' : '-1');
+        });
+
+        panels.forEach(panel => {
+          const isActive = panel.dataset.panel === nextTarget;
+          panel.classList.toggle('active', isActive);
+          panel.hidden = !isActive;
+        });
+      }
+
+      function applyDefaultSummaryPreference(preference, shouldPersist) {
+        summaryTabPreference = preference;
         document.querySelectorAll('.feed-item-summary').forEach(container => {
-          const tabs = container.querySelectorAll('.summary-tab');
-          const panels = container.querySelectorAll('.summary-panel');
-
-          if (!tabs.length || !panels.length) {
-            return;
-          }
-
-          const availablePanels = Array.from(panels).map(panel => panel.dataset.panel);
-          const nextTarget = availablePanels.includes(preference) ? preference : availablePanels[0];
-
-          tabs.forEach(tab => {
-            const isActive = tab.dataset.target === nextTarget;
-            tab.classList.toggle('active', isActive);
-            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
-            tab.setAttribute('tabindex', isActive ? '0' : '-1');
-          });
-
-          panels.forEach(panel => {
-            const isActive = panel.dataset.panel === nextTarget;
-            panel.classList.toggle('active', isActive);
-            panel.hidden = !isActive;
-          });
-
-          summaryTabPreference = nextTarget;
+          setSummaryForContainer(container, preference);
         });
 
         if (shouldPersist && summaryTabPreference) {
@@ -318,13 +320,13 @@
           tabs.forEach(tab => {
             tab.addEventListener('click', () => {
               const nextTarget = tab.dataset.target || 'tldr';
-              summaryTabPreference = nextTarget;
-              setSummaryPreference(summaryTabPreference, true);
+              // Only update this item; do not change the saved default.
+              setSummaryForContainer(container, nextTarget);
             });
           });
         });
 
-        setSummaryPreference(summaryTabPreference, false);
+        applyDefaultSummaryPreference(summaryTabPreference, false);
       }
 
       function setupListExpansion() {
