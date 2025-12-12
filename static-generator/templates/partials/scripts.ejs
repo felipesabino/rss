@@ -36,6 +36,7 @@
       const defaultTabSelect = document.getElementById('defaultTabSelect');
       const statusDot = document.querySelector('.status-dot');
       const statusText = document.querySelector('.status-text');
+      let collapsedFeeds = loadCollapsedFeeds();
 
       // Check for saved preference
       const isDarkMode = localStorage.getItem('darkMode') === 'true';
@@ -52,6 +53,7 @@
 
       applyLayoutMode(layoutMode);
       initSummaryTabs();
+      initFeedCollapse();
       syncDefaultTabSelect(summaryTabPreference);
       refreshFreshness();
       // Keep the freshness indicator in sync as time passes
@@ -327,6 +329,66 @@
         });
 
         applyDefaultSummaryPreference(summaryTabPreference, false);
+      }
+
+      function setFeedCollapsed(feedEl, collapsed) {
+        feedEl.classList.toggle('collapsed', collapsed);
+        const toggle = feedEl.querySelector('.feed-collapse-toggle');
+        if (toggle) {
+          toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+          const label = toggle.querySelector('.collapse-label');
+          const icon = toggle.querySelector('.collapse-icon');
+          if (label) {
+            label.textContent = collapsed ? 'Expand' : 'Collapse';
+          }
+          if (icon) {
+            icon.textContent = collapsed ? '▸' : '▾';
+          }
+        }
+      }
+
+      function loadCollapsedFeeds() {
+        try {
+          const raw = localStorage.getItem('collapsedFeeds');
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) ? parsed.map(String) : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveCollapsedFeeds(list) {
+        localStorage.setItem('collapsedFeeds', JSON.stringify(list));
+      }
+
+      function initFeedCollapse() {
+        document.querySelectorAll('.feed').forEach(feedEl => {
+          const feedId = feedEl.getAttribute('data-feed-id');
+          const shouldCollapse = feedId && collapsedFeeds.includes(feedId);
+
+          setFeedCollapsed(feedEl, Boolean(shouldCollapse));
+
+          const toggle = feedEl.querySelector('.feed-collapse-toggle');
+          if (!toggle) {
+            return;
+          }
+
+          toggle.addEventListener('click', () => {
+            const nextCollapsed = !feedEl.classList.contains('collapsed');
+            setFeedCollapsed(feedEl, nextCollapsed);
+
+            if (!feedId) {
+              return;
+            }
+
+            if (nextCollapsed && !collapsedFeeds.includes(feedId)) {
+              collapsedFeeds.push(feedId);
+            } else if (!nextCollapsed && collapsedFeeds.includes(feedId)) {
+              collapsedFeeds = collapsedFeeds.filter(id => id !== feedId);
+            }
+            saveCollapsedFeeds(collapsedFeeds);
+          });
+        });
       }
 
       function setupListExpansion() {

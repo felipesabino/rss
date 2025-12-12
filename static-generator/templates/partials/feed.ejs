@@ -2,7 +2,7 @@
   const feedItems = itemsByFeed[feed.id] || [];
   const fallbackSiteUrl = feedMetadata[feed.id]?.siteUrl || (feed.url ? feed.url.replace(/\/rss\/?.*$|\.rss$|\/feed\/?.*$|\.xml$/, '/') : '#');
 %>
-<div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
+<div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>" data-feed-id="<%= feed.id %>">
   <div class="feed-header">
     <div class="feed-title">
       <a href="<%= fallbackSiteUrl %>" target="_blank" rel="noopener noreferrer" class="feed-title-link">
@@ -19,9 +19,13 @@
         <% let domainLabel = ''; try { if (feedMetadata[feed.id]?.siteUrl) { domainLabel = new URL(feedMetadata[feed.id].siteUrl).hostname; } else if (feed.url) { domainLabel = new URL(feed.url).hostname; } } catch (e) {} %>
         <%= domainLabel || 'feed' %>
       </span>
+      <button class="feed-collapse-toggle" type="button" aria-expanded="true" aria-controls="feed-items-<%= feed.id %>">
+        <span class="collapse-icon" aria-hidden="true">▾</span>
+        <span class="collapse-label">Collapse</span>
+      </button>
     </div>
   </div>
-  <div class="feed-items">
+  <div class="feed-items" id="feed-items-<%= feed.id %>">
     <% if (feedItems && feedItems.length) { %>
       <% feedItems.forEach(function(item) { 
            const usageCategories = (reportUsageMap && reportUsageMap[item.id]) || [];
