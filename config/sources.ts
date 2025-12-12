@@ -20,7 +20,7 @@ export type SourceInput = Omit<SourceConfig, "id">;
 const sourceInputs: SourceInput[] = [
   {
     name: "Hacker News",
-    url: "https://news.ycombinator.com/rss",
+    url: "https://hnrss.org/frontpage",
     categories: ["tech"],
     type: "rss" as const,
   },

@@ -1,0 +1,11 @@
+    <div class="category-filter">
+      <ul class="category-list">
+        <li class="category-item all active" data-category="all">All</li>
+        <% categories.forEach(function(category) { %>
+          <li class="category-item" data-category="<%= category %>">
+            <%= category.charAt(0).toUpperCase() + category.slice(1) %>
+          </li>
+        <% }); %>
+      </ul>
+      <div class="category-help">Click to select multiple categories. Click "All" to reset.</div>
+    </div>

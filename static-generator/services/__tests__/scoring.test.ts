@@ -27,7 +27,7 @@ function createItem(overrides: Partial<AIProcessedItem> = {}): AIProcessedItem {
         commentsUrl: overrides.commentsUrl,
         summary: overrides.summary,
         hasSummary: overrides.hasSummary ?? true,
-        isPositive: overrides.isPositive
+        sentiment: overrides.sentiment ?? 'Mixed'
     };
 }
 

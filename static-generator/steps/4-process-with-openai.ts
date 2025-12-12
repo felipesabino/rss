@@ -2,13 +2,17 @@ import { analyzeItem } from '../services/openai';
 import fs from 'fs/promises';
 import path from 'path';
 import { loadProcessedContentCache, ProcessedContentItem } from './3-process-content';
+import { CommentInsights } from './2-extract-content';
 import { sources } from '../../config/sources';
 
 // Define the structure for AI processed items
 export interface AIProcessedItem extends ProcessedContentItem {
   summary?: string;
+  eli5?: string;
   hasSummary: boolean;
-  isPositive?: boolean;
+  sentiment?: 'Positive' | 'Negative' | 'Mixed';
+  tags?: string[];
+  commentInsights?: CommentInsights;
 }
 
 // Define the structure for the AI processed content cache
@@ -70,21 +74,17 @@ export async function processWithOpenAI(): Promise<void> {
     try {
       let summary: string | undefined;
       let hasSummary = false;
-      let isPositive: boolean | undefined;
+      let eli5: string | undefined;
+      let sentiment: 'Positive' | 'Negative' | 'Mixed' | undefined;
+      let tags: string[] | undefined;
 
       // Skip OpenAI processing for non-text content or if flagged to skip
       if (item.shouldSkipAI) {
         console.log(`Skipping OpenAI processing for item. Media type: ${item.mediaType}`);
-        console.log(`Defaulting to not positive for non-text content.`);
-
-        // Default to not positive for non-text content
-        isPositive = false;
+        console.log(`Defaulting to neutral/mixed sentiment for non-text content.`);
+        sentiment = 'Mixed';
       } else {
         const content = item.content || '';
-
-        // Only analyze if content is substantial or we want to analyze title
-        // We'll analyze if content > 200 chars OR if we just want to rely on title for short content
-        // But the original code had a check for summary (content > 500)
 
         const shouldAnalyze = content.length > 200 || item.title.length > 20;
 
@@ -94,27 +94,32 @@ export async function processWithOpenAI(): Promise<void> {
             const analysis = await analyzeItem(content || item.title, item.title);
 
             summary = analysis.summary;
-            isPositive = analysis.isPositive;
+            eli5 = analysis.eli5;
+            sentiment = analysis.sentiment;
+            tags = analysis.tags || [];
             hasSummary = true; // analyzeItem always returns a summary string (even if error message)
 
-            console.log(`Analysis completed for "${item.title}": Sentiment: ${isPositive ? 'Positive ✅' : 'Negative/Neutral ❌'}`);
+            console.log(`Analysis completed for "${item.title}": Sentiment: ${sentiment}`);
           } catch (err: any) {
             console.error(`Failed to analyze item: ${err.message}`);
-            // Default values on error
-            isPositive = false;
+            sentiment = 'Mixed';
           }
         } else {
-          // Very short content, maybe just skip or default
-          isPositive = false;
+          sentiment = 'Mixed';
         }
       }
 
       // Create the AI processed item
+      if (!eli5 && summary) {
+        eli5 = summary;
+      }
       const aiProcessedItem: AIProcessedItem = {
         ...item,
         summary,
+        eli5,
         hasSummary,
-        isPositive
+        sentiment,
+        tags
       };
 
       // Add to the AI processed items array
@@ -127,7 +132,8 @@ export async function processWithOpenAI(): Promise<void> {
       aiProcessedCache.items.push({
         ...item,
         hasSummary: false,
-        isPositive: false
+        eli5: undefined,
+        sentiment: 'Mixed'
       });
     }
   }

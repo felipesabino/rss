@@ -17,6 +17,25 @@ export interface ExtractedItem {
   commentsUrl?: string;
   mediaType?: string;
   mediaUrl?: string;
+  commentInsights?: CommentInsights;
+  points?: number;
+  commentCount?: number;
+}
+
+export interface CommentInsights {
+  totalComments?: number;
+  sentimentBreakdown?: {
+    constructive?: number;
+    technical?: number;
+    flameWar?: number;
+    neutral?: number;
+  };
+  highlightedComments?: Array<{
+    author?: string;
+    text: string;
+    sentiment?: 'Constructive' | 'Technical' | 'Flame War' | 'Neutral';
+    score?: number;
+  }>;
 }
 
 // Define the structure for the extracted content cache
@@ -158,7 +177,9 @@ export async function extractAllContent(): Promise<void> {
           published: item.pubDate ? parseDate(item.pubDate) : new Date(),
           commentsUrl: item.comments,
           mediaType,
-          mediaUrl
+          mediaUrl,
+          points: item.points,
+          commentCount: item.commentCount
         };
 
         // Add to the extracted items array

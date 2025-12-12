@@ -10,6 +10,7 @@ export interface ProcessedContentItem extends ExtractedItem {
   mediaType: string;
   mediaUrl?: string;
   shouldSkipAI: boolean;
+  commentInsights?: CommentInsights;
 }
 
 // Define the structure for the processed content cache

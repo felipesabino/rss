@@ -23,6 +23,8 @@ export interface FeedItem {
   pubDate: string;
   content?: string;
   comments?: string;
+  points?: number;
+  commentCount?: number;
 }
 
 export interface FeedMetadata {
@@ -190,6 +192,57 @@ export class FeedParserService {
   ) { }
 
   /**
+   * Normalize raw feed items into a consistent structure.
+   * This also extracts engagement metrics (points/upvotes and comment counts)
+   * from description/content blocks when present (e.g., Hacker News feeds).
+   */
+  private normalizeFeedItem(item: any): FeedItem {
+    const content =
+      item.content ||
+      item['content:encoded'] ||
+      item.contentSnippet ||
+      item.description ||
+      '';
+
+    const { points, commentCount } = this.extractEngagementMetrics(content);
+
+    return {
+      title: item.title || '',
+      link: item.link || '',
+      pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
+      content,
+      comments: item.comments,
+      points,
+      commentCount
+    };
+  }
+
+  private normalizeFeedItems(items: any[] = []): FeedItem[] {
+    return items.map(item => this.normalizeFeedItem(item));
+  }
+
+  /**
+   * Extract engagement metrics (points/upvotes and comment counts) from text content.
+   */
+  private extractEngagementMetrics(content?: string): { points?: number; commentCount?: number } {
+    if (!content) return {};
+
+    const normalizeNumber = (value?: string) => {
+      if (!value) return undefined;
+      const parsed = parseInt(value.replace(/,/g, ''), 10);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    };
+
+    const pointsMatch = content.match(/Points:\s*([\d,]+)/i) || content.match(/Score:\s*([\d,]+)/i);
+    const commentsMatch = content.match(/#\s*Comments:\s*([\d,]+)/i) || content.match(/Comments:\s*([\d,]+)/i);
+
+    return {
+      points: normalizeNumber(pointsMatch?.[1]),
+      commentCount: normalizeNumber(commentsMatch?.[1])
+    };
+  }
+
+  /**
    * Parse a feed URL using multiple strategies to handle different feed formats
    * 
    * @param feedUrl The URL of the feed to parse
@@ -209,6 +262,7 @@ export class FeedParserService {
         const parsedFeed = await this.feedParser.parseURL(feedUrl);
         if (parsedFeed.items && Array.isArray(parsedFeed.items)) {
           console.log(`Successfully parsed with rss-parser: ${parsedFeed.items.length} items`);
+          const normalizedItems = this.normalizeFeedItems(parsedFeed.items);
 
           // Extract metadata from the parsed feed (for internal use)
           if (parsedFeed.link) {
@@ -233,7 +287,7 @@ export class FeedParserService {
           // Store metadata for later retrieval
           this._lastMetadata = metadata;
 
-          return parsedFeed.items;
+          return normalizedItems;
         }
       } catch (parseError: any) {
         console.log(`Standard parsing failed for ${feedName}: ${parseError.message}`);
@@ -370,12 +424,17 @@ export class FeedParserService {
       // Try to parse as RSS
       $('item').each((index: number, element: any) => {
         const $el = $(element);
+        const description = $el.find('description').text() || $el.find('content\\:encoded').text();
+        const { points, commentCount } = this.extractEngagementMetrics(description);
+
         feedItems.push({
           title: $el.find('title').text(),
           link: $el.find('link').text(),
           pubDate: $el.find('pubDate').text() || new Date().toISOString(),
-          content: $el.find('description').text() || $el.find('content\\:encoded').text(),
-          comments: $el.find('comments').text()
+          content: description,
+          comments: $el.find('comments').text(),
+          points,
+          commentCount
         });
       });
 
@@ -390,12 +449,17 @@ export class FeedParserService {
             link = $el.find('link').text();
           }
 
+          const content = $el.find('content').text() || $el.find('summary').text();
+          const { points, commentCount } = this.extractEngagementMetrics(content);
+
           feedItems.push({
             title: $el.find('title').text(),
             link: link,
             pubDate: $el.find('published').text() || $el.find('updated').text() || new Date().toISOString(),
-            content: $el.find('content').text() || $el.find('summary').text(),
-            comments: ''
+            content,
+            comments: '',
+            points,
+            commentCount
           });
         });
       }

@@ -6,7 +6,11 @@ import { CONTENT_FILTERING_THEMES } from "../../config/constants";
 // Schema for Item Analysis
 export const ItemAnalysisSchema = z.object({
   summary: z.string().describe("A concise summary of the text, focusing on key points and main ideas."),
-  isPositive: z.boolean().describe("True if the content has a positive/uplifting sentiment, false otherwise."),
+  eli5: z.string().describe("Explain like I'm five: a 1-2 line ultra-simple recap."),
+  sentiment: z.enum(['Positive', 'Negative', 'Mixed']).describe("Overall sentiment classification across the content."),
+  tags: z.array(
+    z.string().describe("Single-word topic tag (e.g., cloud, chips, earnings).")
+  ).min(2).max(3).describe("2-3 short, single-word tags capturing the core themes."),
 });
 
 export type ItemAnalysis = z.infer<typeof ItemAnalysisSchema>;
@@ -44,7 +48,7 @@ export async function analyzeItem(text: string, title: string): Promise<ItemAnal
   // Check if OpenAI API key is available
   if (!process.env.OPENAI_API_KEY) {
     console.warn("OPENAI_API_KEY is not set. Skipping analysis.");
-    return { summary: "Summary not available (API key not configured).", isPositive: false };
+    return { summary: "Summary not available (API key not configured).", eli5: "Summary not available.", sentiment: 'Mixed', tags: [] };
   }
 
   const openai = new OpenAI({
@@ -63,11 +67,28 @@ export async function analyzeItem(text: string, title: string): Promise<ItemAnal
       messages: [
         {
           role: "system",
-          content: `You are a skilled content analyst. 
-          1. Summarize the provided text concisely in English.
-          2. Analyze the sentiment. Return 'isPositive' as true ONLY if the content is genuinely positive/uplifting. 
-          Automatically flag as negative (isPositive: false) if the content is related to: ${CONTENT_FILTERING_THEMES.join(", ")}.`
-        },
+          content: `You are an expert tech editor and summarizer, similar to the engine behind "WhatHappened.tech". Your goal is to extract the core value from a webpage's HTML content and present it in three distinct, easy-to-digest formats.
+**Input:**
+I will provide you with the raw HTML content of a webpage.
+**Instructions:**
+1.  **Parse & Clean:** Ignore HTML boilerplate, scripts, styles, navigation bars, footers, and advertisements. Focus strictly on the main article body or the primary discussion text.
+2.  **Analyze:** Identify the central thesis, key technical details, and the "so what?" factor of the content.
+3.  **Generate Output:** Create a response with the following three clearly labeled sections:
+  * **## Summary**
+      A professional, objective paragraph (approx. 3-5 sentences) that summarizes the article. Imagine this as the opening abstract for a busy executive or senior engineer. Mention specific technologies, companies, or people involved.
+  * **## TL;DR (Too Long; Didn't Read)**
+      Provide 3-5 concise bullet points. These should be "skimmable" takeaways that cover the most important facts, stats, or arguments.
+      * *Style:* Direct, factual, and high-signal.
+  * **## ELI5 (Explain Like I'm 5)**
+      A short, simplified explanation of the topic. Use an analogy if helpful. Avoid jargon completely. Explain *why* this matters in the simplest terms possible.
+      * *Style:* Conversational and educational.
+4. Classify sentiment as Positive, Negative, or Mixed. Automatically flag as Negative if the content is related to: ${CONTENT_FILTERING_THEMES.join(", ")}.
+5. Produce 2-3 short, single-word tags that capture the primary topics. Keep them simple and avoid punctuation. Be generic to reflect broad themes (e.g. use Finance instead of FinTech, Debt, etc). Use Title Case for the tags, and correct capitalization for proper nouns (e.g. use AWS instead of aws, AI instead of ai).
+**Constraints:**
+* If the HTML content is empty or unreadable, state: "Content could not be extracted."
+* Do not hallucinate facts not present in the text.
+* Keep the tone neutral and informative.`,
+      },
         {
           role: "user",
           content: textToAnalyze,
@@ -85,10 +106,11 @@ export async function analyzeItem(text: string, title: string): Promise<ItemAnal
       throw new Error("Failed to parse structured output");
     }
 
-    return result;
+    const sentiment = result.sentiment || 'Mixed';
+    return { ...result, sentiment, tags: result.tags || [] };
   } catch (error) {
     console.error("Error analyzing item:", error);
-    return { summary: "Error generating summary.", isPositive: false };
+    return { summary: "Error generating summary.", eli5: "ELI5 unavailable.", sentiment: 'Mixed', tags: [] };
   }
 }
 

@@ -1,0 +1,53 @@
+    <header class="header">
+      <div class="hero">
+        <div class="header-topbar">
+          <div class="brand">
+            <div class="brand-mark">D</div>
+            <div class="brand-copy">
+              <div class="brand-name">Daily Digest</div>
+              <div class="brand-tagline">What Happened, remixed</div>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle dark mode" type="button">🌙</button>
+            <div class="date-chip">
+              <%= new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) %>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-main">
+          <div>
+            <div class="title-row">
+              <h1>Today's Top Stories</h1>
+              <span class="status-dot" aria-hidden="true" data-last-updated="<%= typeof lastUpdated !== 'undefined' ? lastUpdated : '' %>"></span>
+              <span class="status-text">Updated just now</span>
+            </div>
+            <p class="hero-subtitle">
+              The day's headlines delivered to you without bullshit.
+            </p>
+          </div>
+
+          <div class="header-controls">
+            <div class="view-toggle" role="group" aria-label="Toggle layout">
+              <button class="layout-button" type="button" data-layout-option="list" aria-pressed="false" title="List view">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg>
+              </button>
+              <button class="layout-button active" type="button" data-layout-option="grid" aria-pressed="true" title="Card view">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect></svg>
+              </button>
+            </div>
+
+            <label class="select-control">
+              <span>Default tab:</span>
+              <select id="defaultTabSelect" aria-label="Choose default summary tab">
+                <option value="tldr">TL;DR</option>
+                <option value="eli5">ELI5</option>
+              </select>
+            </label>
+
+            <button id="goodVibesToggle" class="good-vibes-toggle" type="button">Good Vibes Only</button>
+          </div>
+        </div>
+      </div>
+    </header>

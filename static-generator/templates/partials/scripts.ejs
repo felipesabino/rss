@@ -1,0 +1,610 @@
+  <script>
+    // Enable debug mode by adding ?debug=true to the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const debugMode = urlParams.get('debug') === 'true';
+
+    if (debugMode) {
+      console.log('Debug mode enabled');
+    }
+
+    // Toggle media embed visibility
+    document.addEventListener('DOMContentLoaded', function () {
+      const body = document.body;
+
+      document.querySelectorAll('.feed-item-media-toggle').forEach(function (element) {
+        element.addEventListener('click', function () {
+          const itemId = this.getAttribute('data-item-id');
+          const mediaElement = document.getElementById('media-' + itemId);
+          if (!mediaElement) {
+            return;
+          }
+
+          const isList = body.classList.contains('list-layout');
+
+          // In card/grid view, keep media visible by default
+          if (!isList) {
+            mediaElement.classList.remove('hidden');
+            return;
+          }
+
+          mediaElement.classList.toggle('hidden');
+        });
+      });
+      // UI controls
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      const layoutButtons = document.querySelectorAll('[data-layout-option]');
+      const defaultTabSelect = document.getElementById('defaultTabSelect');
+      const statusDot = document.querySelector('.status-dot');
+      const statusText = document.querySelector('.status-text');
+
+      // Check for saved preference
+      const isDarkMode = localStorage.getItem('darkMode') === 'true';
+      let layoutMode = localStorage.getItem('layoutMode') || 'grid';
+      let summaryTabPreference = localStorage.getItem('summaryTabPreference') || 'tldr';
+
+      // Set initial state
+      if (isDarkMode) {
+        body.classList.add('dark-mode');
+        if (darkModeToggle) {
+          darkModeToggle.textContent = '☀️';
+        }
+      }
+
+      applyLayoutMode(layoutMode);
+      initSummaryTabs();
+      syncDefaultTabSelect(summaryTabPreference);
+      refreshFreshness();
+      // Keep the freshness indicator in sync as time passes
+      setInterval(refreshFreshness, 60 * 1000);
+
+      // Toggle dark mode
+      if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', function () {
+          const isDark = body.classList.toggle('dark-mode');
+          darkModeToggle.textContent = isDark ? '☀️' : '🌙';
+          localStorage.setItem('darkMode', isDark);
+        });
+      }
+
+      layoutButtons.forEach(button => {
+        button.addEventListener('click', function () {
+          const nextLayout = this.dataset.layoutOption || 'grid';
+          layoutMode = nextLayout;
+          localStorage.setItem('layoutMode', layoutMode);
+          applyLayoutMode(layoutMode);
+        });
+      });
+
+      if (defaultTabSelect) {
+        defaultTabSelect.addEventListener('change', function (event) {
+          const nextPreference = event.target.value || 'tldr';
+          summaryTabPreference = nextPreference;
+          setSummaryPreference(summaryTabPreference, true);
+        });
+      }
+
+      // Good Vibes Only toggle functionality
+      const goodVibesToggle = document.getElementById('goodVibesToggle');
+      let goodVibesOnly = localStorage.getItem('goodVibesOnly') === 'true';
+
+      // Set initial state
+      if (goodVibesOnly) {
+        goodVibesToggle.classList.add('active');
+        filterByPositiveSentiment(true);
+      } else {
+        goodVibesToggle.classList.remove('active');
+        filterByPositiveSentiment(false);
+      }
+
+      // Toggle good vibes filter
+      goodVibesToggle.addEventListener('click', function () {
+        goodVibesOnly = !goodVibesOnly;
+        this.classList.toggle('active', goodVibesOnly);
+        localStorage.setItem('goodVibesOnly', goodVibesOnly);
+        filterByPositiveSentiment(goodVibesOnly);
+      });
+
+      // Function to filter items by sentiment
+      function filterByPositiveSentiment(showOnlyPositive) {
+        if (debugMode) {
+          console.log(`Filtering items, showOnlyPositive: ${showOnlyPositive}`);
+        }
+
+        const feedItems = document.querySelectorAll('.feed-item');
+        let positiveCount = 0;
+        let negativeCount = 0;
+
+        feedItems.forEach(function (item) {
+          const sentiment = (item.getAttribute('data-sentiment') || '').toLowerCase();
+          const isPositive = sentiment === 'positive';
+
+          if (debugMode) {
+            const itemTitle = item.querySelector('.feed-item-link').textContent.trim();
+            console.log(`Item: "${itemTitle.substring(0, 30)}...", sentiment: ${sentiment}`);
+          }
+
+          if (isPositive) {
+            positiveCount++;
+          } else {
+            negativeCount++;
+          }
+
+          if (showOnlyPositive) {
+            if (isPositive) {
+              item.style.display = '';
+            } else {
+              item.style.display = 'none';
+            }
+          } else {
+            item.style.display = '';
+          }
+        });
+
+        if (debugMode) {
+          console.log(`Total items: ${feedItems.length}, Positive: ${positiveCount}, Negative/Neutral: ${negativeCount}`);
+        }
+
+        // Show/hide "no items" message for feeds
+        document.querySelectorAll('.feed').forEach(function (feed) {
+          const feedTitle = feed.querySelector('.feed-title-link').textContent.trim();
+
+          // Count visible items correctly by checking display property
+          const allItems = Array.from(feed.querySelectorAll('.feed-item'));
+          const visibleItems = allItems.filter(item => item.style.display !== 'none');
+
+          if (debugMode) {
+            console.log(`Feed: "${feedTitle}", Total items: ${allItems.length}, Visible items: ${visibleItems.length}`);
+          }
+
+          const feedItems = feed.querySelector('.feed-items');
+
+          if (visibleItems.length === 0 && showOnlyPositive) {
+            // Create "no positive items" message if it doesn't exist
+            let noPositiveItems = feed.querySelector('.no-positive-items');
+            if (!noPositiveItems) {
+              noPositiveItems = document.createElement('p');
+              noPositiveItems.className = 'no-positive-items';
+              noPositiveItems.textContent = 'No positive items found for this feed';
+              feedItems.appendChild(noPositiveItems);
+            }
+            noPositiveItems.style.display = '';
+          } else {
+            // Hide "no positive items" message if it exists
+            const noPositiveItems = feed.querySelector('.no-positive-items');
+            if (noPositiveItems) {
+              noPositiveItems.style.display = 'none';
+            }
+          }
+        });
+      }
+
+      function applyLayoutMode(mode) {
+        const isList = mode === 'list';
+        body.classList.toggle('list-layout', isList);
+        updateSummariesForLayout(isList);
+        updateMediaForLayout(isList);
+        setupListExpansion();
+        layoutButtons.forEach(button => {
+          const isActive = (button.dataset.layoutOption || '') === mode;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      }
+
+      function updateSummariesForLayout(isList) {
+        const toggles = document.querySelectorAll('.feed-item-summary-toggle');
+        const summaries = document.querySelectorAll('.feed-item-summary');
+        const feedItems = document.querySelectorAll('.feed-item');
+
+        // Hide legacy text toggles in all layouts
+        toggles.forEach(toggle => toggle.classList.add('hidden'));
+
+        // Ensure summaries are present for animation-based show/hide
+        summaries.forEach(summary => summary.classList.remove('hidden'));
+
+        // Default collapsed in list layout, fully expanded in grid/card
+        if (!isList) {
+          feedItems.forEach(item => item.classList.remove('expanded'));
+        } else {
+          feedItems.forEach(item => item.classList.remove('expanded'));
+        }
+      }
+
+      function updateMediaForLayout(isList) {
+        const mediaEmbeds = document.querySelectorAll('.feed-item-media-embed');
+        mediaEmbeds.forEach(embed => {
+          // Always surface media in card/grid view
+          if (!isList) {
+            embed.classList.remove('hidden');
+            return;
+          }
+
+          // For list view, collapse by default (CSS handles transition),
+          // but ensure any lingering hidden class does not block expansion.
+          embed.classList.remove('hidden');
+        });
+      }
+
+      function refreshFreshness() {
+        if (!statusDot || !statusText) {
+          return;
+        }
+
+        const rawValue = statusDot.getAttribute('data-last-updated');
+        const parsed = rawValue ? Number(rawValue) : NaN;
+        const lastUpdatedMs = Number.isFinite(parsed) ? parsed : null;
+
+        if (!lastUpdatedMs) {
+          statusText.textContent = 'Updated recently';
+          statusDot.classList.remove('status-warn', 'status-alert');
+          return;
+        }
+
+        const now = Date.now();
+        const diffMs = now - lastUpdatedMs;
+        const diffHours = diffMs / (1000 * 60 * 60);
+        const lastUpdatedDate = new Date(lastUpdatedMs);
+
+        const formattedTime = lastUpdatedDate.toLocaleTimeString([], {
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+
+        if (diffHours >= 1) {
+          const roundedHours = Math.floor(diffHours);
+          statusText.textContent = `Updated ${roundedHours} hour${roundedHours === 1 ? '' : 's'} ago`;
+        } else {
+          // Less than an hour: show the exact time
+          statusText.textContent = `Updated ${formattedTime}`;
+        }
+
+        statusDot.classList.remove('status-warn', 'status-alert');
+        if (diffHours >= 8) {
+          statusDot.classList.add('status-alert');
+        } else if (diffHours >= 4) {
+          statusDot.classList.add('status-warn');
+        }
+      }
+
+      function syncDefaultTabSelect(value) {
+        if (defaultTabSelect && defaultTabSelect.value !== value) {
+          defaultTabSelect.value = value;
+        }
+      }
+
+      function setSummaryPreference(preference, shouldPersist) {
+        document.querySelectorAll('.feed-item-summary').forEach(container => {
+          const tabs = container.querySelectorAll('.summary-tab');
+          const panels = container.querySelectorAll('.summary-panel');
+
+          if (!tabs.length || !panels.length) {
+            return;
+          }
+
+          const availablePanels = Array.from(panels).map(panel => panel.dataset.panel);
+          const nextTarget = availablePanels.includes(preference) ? preference : availablePanels[0];
+
+          tabs.forEach(tab => {
+            const isActive = tab.dataset.target === nextTarget;
+            tab.classList.toggle('active', isActive);
+            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            tab.setAttribute('tabindex', isActive ? '0' : '-1');
+          });
+
+          panels.forEach(panel => {
+            const isActive = panel.dataset.panel === nextTarget;
+            panel.classList.toggle('active', isActive);
+            panel.hidden = !isActive;
+          });
+
+          summaryTabPreference = nextTarget;
+        });
+
+        if (shouldPersist && summaryTabPreference) {
+          localStorage.setItem('summaryTabPreference', summaryTabPreference);
+        }
+
+        syncDefaultTabSelect(summaryTabPreference);
+      }
+
+      function initSummaryTabs() {
+        document.querySelectorAll('.feed-item-summary').forEach(container => {
+          const tabs = container.querySelectorAll('.summary-tab');
+
+          if (!tabs.length) {
+            return;
+          }
+
+          tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+              const nextTarget = tab.dataset.target || 'tldr';
+              summaryTabPreference = nextTarget;
+              setSummaryPreference(summaryTabPreference, true);
+            });
+          });
+        });
+
+        setSummaryPreference(summaryTabPreference, false);
+      }
+
+      function setupListExpansion() {
+        const isList = body.classList.contains('list-layout');
+
+        document.querySelectorAll('.feed-item').forEach(item => {
+          const header = item.querySelector('.feed-item-header');
+          const summary = item.querySelector('.feed-item-summary');
+          const mediaEmbed = item.querySelector('.feed-item-media-embed');
+          const toggleIcon = item.querySelector('.feed-item-toggle-icon');
+          const isExpandable = Boolean(summary || mediaEmbed);
+
+          if (!header || !isExpandable) {
+            return;
+          }
+
+          // Only show the chevron in list layout
+          if (toggleIcon) {
+            toggleIcon.style.visibility = isList ? 'visible' : 'hidden';
+          }
+
+          if (item.dataset.summaryBound === 'true') {
+            return;
+          }
+          item.dataset.summaryBound = 'true';
+
+          header.addEventListener('click', function (evt) {
+            if (!body.classList.contains('list-layout')) {
+              return;
+            }
+
+            const clickedToggle = evt.target.closest('.feed-item-toggle-icon');
+            const clickedActionLink = evt.target.closest('.feed-item-actions a');
+            const clickedSentiment = evt.target.closest('.feed-item-sentiment');
+            const clickedTitleLink = evt.target.closest('.feed-item-link');
+
+            if (clickedActionLink || clickedSentiment || clickedTitleLink) {
+              return;
+            }
+
+            if (clickedToggle) {
+              item.classList.toggle('expanded');
+              return;
+            }
+
+            // Allow header clicks (outside of links/icons) to toggle
+            item.classList.toggle('expanded');
+          });
+        });
+      }
+
+      // Category filter functionality
+      const categoryItems = document.querySelectorAll('.category-item');
+      const feeds = document.querySelectorAll('.feed');
+
+      // Report functionality
+      const reportToggleContainer = document.getElementById('reportToggleContainer');
+      const reportContainer = document.getElementById('reportContainer');
+      const categoryReports = document.querySelectorAll('.category-report');
+      const noReportMessage = document.getElementById('noReportMessage');
+
+      let showReport = localStorage.getItem('showReport') === 'true';
+      let activeReportCategory = localStorage.getItem('activeReportCategory');
+      if (activeReportCategory === 'null' || activeReportCategory === 'undefined') {
+        activeReportCategory = null;
+      }
+
+      // Get selected categories from localStorage or default to ['all']
+      let selectedCategories = [];
+      try {
+        const savedCategories = localStorage.getItem('selectedCategories');
+        selectedCategories = savedCategories ? JSON.parse(savedCategories) : ['all'];
+      } catch (e) {
+        selectedCategories = ['all'];
+      }
+
+      function setActiveReportCategory(category) {
+        activeReportCategory = category;
+        if (category) {
+          localStorage.setItem('activeReportCategory', category);
+        } else {
+          localStorage.removeItem('activeReportCategory');
+        }
+      }
+
+      function formatCategoryLabel(category) {
+        if (!category) {
+          return '';
+        }
+        return category.charAt(0).toUpperCase() + category.slice(1);
+      }
+
+      function handleReportButtonClick(category) {
+        if (activeReportCategory === category && showReport) {
+          showReport = false;
+        } else {
+          showReport = true;
+          setActiveReportCategory(category);
+        }
+
+        localStorage.setItem('showReport', showReport);
+        updateReportDisplay();
+      }
+
+      function renderReportButtons(categories) {
+        reportToggleContainer.innerHTML = '';
+
+        const hasSpecificCategories = Array.isArray(categories) && !categories.includes('all');
+        if (!hasSpecificCategories) {
+          reportToggleContainer.classList.add('hidden');
+          reportContainer.classList.add('hidden');
+          setActiveReportCategory(null);
+          updateReportIndicators(null);
+          return;
+        }
+
+        const orderedSelected = Array.from(categoryItems)
+          .map(item => item.getAttribute('data-category'))
+          .filter(cat => cat && cat !== 'all' && categories.includes(cat));
+
+        if (!orderedSelected.length) {
+          reportToggleContainer.classList.add('hidden');
+          reportContainer.classList.add('hidden');
+          setActiveReportCategory(null);
+          updateReportIndicators(null);
+          return;
+        }
+
+        if (!orderedSelected.includes(activeReportCategory)) {
+          setActiveReportCategory(orderedSelected[0]);
+        }
+
+        orderedSelected.forEach(cat => {
+          const button = document.createElement('button');
+          button.className = 'report-toggle-btn';
+          button.setAttribute('data-category', cat);
+          button.textContent = `Show ${formatCategoryLabel(cat)} Report 📰`;
+          button.addEventListener('click', () => handleReportButtonClick(cat));
+          reportToggleContainer.appendChild(button);
+        });
+
+        reportToggleContainer.classList.remove('hidden');
+        updateReportDisplay();
+      }
+
+      function updateReportDisplay() {
+        const buttons = reportToggleContainer.querySelectorAll('.report-toggle-btn');
+        buttons.forEach(button => {
+          const buttonCategory = button.getAttribute('data-category');
+          button.classList.toggle('active', showReport && buttonCategory === activeReportCategory);
+        });
+
+        categoryReports.forEach(report => report.classList.add('hidden'));
+        if (noReportMessage) {
+          noReportMessage.classList.add('hidden');
+        }
+
+        if (showReport && activeReportCategory) {
+          const targetReport = document.querySelector(`.category-report[data-category="${activeReportCategory}"]`);
+          if (targetReport) {
+            targetReport.classList.remove('hidden');
+            reportContainer.classList.remove('hidden');
+          } else if (noReportMessage) {
+            noReportMessage.classList.remove('hidden');
+            reportContainer.classList.remove('hidden');
+          } else {
+            reportContainer.classList.add('hidden');
+          }
+        } else {
+          reportContainer.classList.add('hidden');
+        }
+
+        updateReportIndicators(showReport ? activeReportCategory : null);
+      }
+
+      // Function to filter feeds by categories
+      function filterFeeds(categories) {
+        // If 'all' is selected, clear other selections
+        if (categories.includes('all')) {
+          categories = ['all'];
+        }
+
+        // If no categories are selected, default to 'all'
+        if (categories.length === 0) {
+          categories = ['all'];
+        }
+
+        // Update active state on category items
+        categoryItems.forEach(item => {
+          const itemCategory = item.getAttribute('data-category');
+          if (categories.includes(itemCategory)) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
+
+        // Show/hide feeds based on selected categories
+        feeds.forEach(feed => {
+          if (categories.includes('all')) {
+            feed.style.display = '';
+          } else {
+            const feedCategories = feed.getAttribute('data-categories').split(' ').map(cat => decodeURIComponent(cat));
+            // Show feed if it matches ANY of the selected categories
+            const hasMatchingCategory = feedCategories.some(cat => categories.includes(cat));
+            feed.style.display = hasMatchingCategory ? '' : 'none';
+          }
+        });
+
+        // Update report visibility
+        updateReportVisibility(categories);
+
+        // Save selection to localStorage
+        localStorage.setItem('selectedCategories', JSON.stringify(categories));
+      }
+
+      function updateReportVisibility(categories) {
+        renderReportButtons(categories);
+      }
+
+      function updateReportIndicators(activeCategory) {
+        const feedItems = document.querySelectorAll('.feed-item');
+        feedItems.forEach(item => item.classList.remove('used-in-active-report'));
+
+        if (!showReport || !activeCategory) {
+          return;
+        }
+
+        const normalizedCategory = activeCategory.toLowerCase();
+
+        feedItems.forEach(item => {
+          const attr = item.getAttribute('data-report-categories') || '';
+          if (!attr) {
+            return;
+          }
+
+          const categories = attr
+            .split(' ')
+            .filter(Boolean)
+            .map(encoded => {
+              try {
+                return decodeURIComponent(encoded).toLowerCase();
+              } catch (e) {
+                return encoded.toLowerCase();
+              }
+            });
+
+          if (categories.includes(normalizedCategory)) {
+            item.classList.add('used-in-active-report');
+          }
+        });
+      }
+
+      // Apply initial filter based on saved preference
+      filterFeeds(selectedCategories);
+
+      // Add click event listeners to category items
+      categoryItems.forEach(item => {
+        item.addEventListener('click', function () {
+          const category = this.getAttribute('data-category');
+
+          // Handle 'all' category specially
+          if (category === 'all') {
+            selectedCategories = ['all'];
+          } else {
+            // Remove 'all' if it's currently selected
+            if (selectedCategories.includes('all')) {
+              selectedCategories = [];
+            }
+
+            // Toggle the selected category
+            if (selectedCategories.includes(category)) {
+              selectedCategories = selectedCategories.filter(cat => cat !== category);
+            } else {
+              selectedCategories.push(category);
+            }
+          }
+
+          filterFeeds(selectedCategories);
+        });
+      });
+    });
+  </script>

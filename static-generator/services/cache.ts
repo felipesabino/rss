@@ -9,7 +9,7 @@ export interface CacheItem {
   url: string;
   content: string;
   summary?: string;
-  isPositive?: boolean;
+  sentiment?: 'Positive' | 'Negative' | 'Mixed';
   mediaType?: string;
   mediaUrl?: string;
   timestamp: number;
