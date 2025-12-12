@@ -1,0 +1,136 @@
+<div class="feed-item" data-sentiment="<%= (item.sentiment || 'unknown').toLowerCase() %>" data-report-categories="<%= usageCategories.map(cat => encodeURIComponent(cat)).join(' ') %>">
+  <div class="feed-item-header">
+    <div class="feed-item-main">
+      <% if (usageCategories.length) { %>
+        <span class="feed-item-report-star" title="Used in this category's News Brief">⭐️</span>
+      <% } %>
+      <div class="feed-item-title-meta">
+        <a href="<%= item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-link">
+          <%= item.title %>
+        </a>
+        <div class="feed-item-meta-row">
+          <% if (item.published) { %>
+            <span class="feed-item-date">
+              (<%= formatDate(new Date(item.published)) %>)
+            </span>
+          <% } %>
+          <% if (itemTags && itemTags.length) { %>
+            <div class="feed-item-tags feed-item-tags-inline" aria-label="Tags">
+              <% itemTags.forEach(function(tag) { %>
+                <span class="feed-item-tag"><%= tag %></span>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+        <% if (itemTags && itemTags.length) { %>
+          <div class="feed-item-tags feed-item-tags-stacked" aria-label="Tags">
+            <% itemTags.forEach(function(tag) { %>
+              <span class="feed-item-tag"><%= tag %></span>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+      <% if (item.hasSummary) { %>
+        <span class="feed-item-summary-toggle" data-item-id="<%= item.id %>">[toggle ai summary]</span>
+      <% } else if (item.mediaType === "image") { %>
+        <span class="feed-item-summary-skipped feed-item-media-image feed-item-media-toggle" data-item-id="<%= item.id %>" title="Click to toggle embedded image. Click the image to open in new tab.">
+          [🖼️ image]
+        </span>
+      <% } else if (item.mediaType === "video" && (item.mediaUrl || item.url).includes("youtube.com/watch") || (item.mediaUrl || item.url).includes("youtu.be/")) { %>
+        <span class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle" data-item-id="<%= item.id %>">
+          [🎬 video]
+        </span>
+      <% } else if (item.mediaType === "video") { %>
+        <span class="feed-item-summary-skipped feed-item-media-video feed-item-media-toggle" data-item-id="<%= item.id %>">
+          [🎬 video]
+        </span>
+      <% } else if (item.mediaType && !['text', 'short-text'].includes(item.mediaType)) { %>
+        <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-summary-skipped feed-item-media-<%= item.mediaType %>" data-item-id="<%= item.id %>" title="<%= item.content || 'Media content' %>">
+          [<%= item.mediaType === "audio" ? "🎵 audio ⬚↗" : item.mediaType === "document" ? "📄 document ⬚↗" : item.mediaType === "archive" ? "📦 archive ⬚↗" : item.mediaType === "error" ? "⚠️ error" : "💻 media ⬚↗" %>]
+        </a>
+      <% } else if (item.content && item.content.startsWith('[ERROR:')) { %>
+        <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-summary-error" data-item-id="<%= item.id %>" title="<%= item.content %>">[⚠️ error loading content]</a>
+      <% } else { %>
+        <span class="feed-item-summary-not-available" data-item-id="<%= item.id %>">[no summary available]</span>
+      <% } %>
+    </div>
+    <div class="feed-item-actions">
+      <a href="<%= item.url %>" target="_blank" rel="noopener noreferrer" class="feed-item-open-link" aria-label="Open item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 3h6v6"></path>
+          <path d="M10 14 21 3"></path>
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+        </svg>
+      </a>
+      <% if (item.commentsUrl) { %>
+        <a href="<%= item.commentsUrl %>" target="_blank" rel="noopener noreferrer" class="feed-item-comments-link" aria-label="Open Hacker News discussion">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square w-4 h-4 text-orange-500" aria-hidden="true"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path></svg>
+        </a>
+      <% } %>
+      <% if (item.sentiment === 'Positive') { %>
+        <span class="feed-item-sentiment positive" title="Positive content">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="5"></circle>
+          </svg>
+        </span>
+      <% } else if (item.sentiment === 'Negative') { %>
+        <span class="feed-item-sentiment negative" title="Neutral or negative content">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="5"></circle>
+          </svg>
+        </span>
+      <% } else if (item.sentiment === 'Mixed') { %>
+        <span class="feed-item-sentiment mixed" title="Mixed sentiment">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="5"></circle>
+          </svg>
+        </span>
+      <% } else { %>
+        <span class="feed-item-sentiment unknown" title="Sentiment not analyzed">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="5"></circle>
+          </svg>
+        </span>
+      <% } %>
+      <% if (item.summary || hasExpandableMedia) { %>
+        <span class="feed-item-toggle-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </span>
+      <% } %>
+    </div>
+  </div>
+  <% if (item.summary || item.eli5) { %>
+    <div class="feed-item-summary" id="summary-<%= item.id %>" data-item-id="<%= item.id %>">
+      <div class="summary-tablist" role="tablist" aria-label="Summary view">
+        <button class="summary-tab active" role="tab" aria-selected="true" data-target="tldr" type="button">TL;DR</button>
+        <button class="summary-tab" role="tab" aria-selected="false" data-target="eli5" type="button">ELI5</button>
+      </div>
+      <div class="summary-panel active" role="tabpanel" data-panel="tldr">
+        <%= item.summary || item.eli5 || '' %>
+      </div>
+      <div class="summary-panel" role="tabpanel" data-panel="eli5">
+        <%= item.eli5 || item.summary || '' %>
+      </div>
+    </div>
+  <% } %>
+  <% if (item.mediaType === "image") { %>
+    <span class="feed-item-media-embed" id="media-<%= item.id %>">
+      <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer">
+        <img src="<%= item.mediaUrl || item.url %>" alt="Embedded image" style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc; cursor: pointer;">
+      </a>
+    </span>
+  <% } else if (item.mediaType === "video" && (item.mediaUrl || item.url).includes("youtube.com/watch") || (item.mediaUrl || item.url).includes("youtu.be/")) { %>
+    <span class="feed-item-media-embed" id="media-<%= item.id %>">
+      <% /* Extract YouTube video ID */ let ytId = null; try { const url = new URL(item.mediaUrl || item.url); if (url.hostname.includes("youtube.com")) { ytId = url.searchParams.get("v"); } else if (url.hostname.includes("youtu.be")) { ytId = url.pathname.replace("/", ""); } } catch (e) {} %>
+      <% if (ytId) { %>
+        <iframe width="400" height="225" src="https://www.youtube.com/embed/<%= ytId %>" frameborder="0" allowfullscreen style="margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></iframe>
+      <% } else { %>
+        <a href="<%= item.mediaUrl || item.url %>" target="_blank" rel="noopener noreferrer">Open video</a>
+      <% } %>
+    </span>
+  <% } else if (item.mediaType === "video") { %>
+    <span class="feed-item-media-embed" id="media-<%= item.id %>">
+      <video src="<%= item.mediaUrl || item.url %>" controls style="max-width: 400px; max-height: 300px; margin-top: 0.5em; border-radius: 6px; border: 1px solid #ccc;"></video>
+    </span>
+  <% } %>
+</div>

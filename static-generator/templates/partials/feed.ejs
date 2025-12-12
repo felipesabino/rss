@@ -1,0 +1,37 @@
+<% 
+  const feedItems = itemsByFeed[feed.id] || [];
+  const fallbackSiteUrl = feedMetadata[feed.id]?.siteUrl || (feed.url ? feed.url.replace(/\/rss\/?.*$|\.rss$|\/feed\/?.*$|\.xml$/, '/') : '#');
+%>
+<div class="feed" data-categories="<%= feed.categories.map(cat => encodeURIComponent(cat)).join(' ') %>">
+  <div class="feed-header">
+    <div class="feed-title">
+      <a href="<%= fallbackSiteUrl %>" target="_blank" rel="noopener noreferrer" class="feed-title-link">
+        <% if (feedMetadata[feed.id]?.iconUrl) { %>
+          <img src="<%= feedMetadata[feed.id].iconUrl %>" alt="<%= feed.name %> icon" class="feed-icon" />
+        <% } else { let hostname = 'google.com'; try { if (feed.url) hostname = new URL(feed.url).hostname; else if (feedMetadata[feed.id]?.siteUrl) hostname = new URL(feedMetadata[feed.id].siteUrl).hostname; } catch (e) {} %>
+          <img src="https://www.google.com/s2/favicons?domain=<%= hostname %>" alt="<%= feed.name %> icon" class="feed-icon" />
+        <% } %>
+        <span class="feed-name"><%= feed.name %></span>
+      </a>
+    </div>
+    <div class="feed-meta">
+      <span class="feed-domain">
+        <% let domainLabel = ''; try { if (feedMetadata[feed.id]?.siteUrl) { domainLabel = new URL(feedMetadata[feed.id].siteUrl).hostname; } else if (feed.url) { domainLabel = new URL(feed.url).hostname; } } catch (e) {} %>
+        <%= domainLabel || 'feed' %>
+      </span>
+    </div>
+  </div>
+  <div class="feed-items">
+    <% if (feedItems && feedItems.length) { %>
+      <% feedItems.forEach(function(item) { 
+           const usageCategories = (reportUsageMap && reportUsageMap[item.id]) || [];
+           const hasExpandableMedia = item.mediaType === 'image' || item.mediaType === 'video';
+           const itemTags = (item.tags && item.tags.length) ? item.tags : (feed.categories || []);
+      %>
+        <%- include('feed-item', { item, feed, usageCategories, hasExpandableMedia, itemTags, formatDate }) %>
+      <% }); %>
+    <% } else { %>
+      <p class="no-items">No recent items found for this feed</p>
+    <% } %>
+  </div>
+</div>

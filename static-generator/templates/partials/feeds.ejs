@@ -1,0 +1,5 @@
+    <div class="feeds-container">
+      <% feeds.forEach(function(feed) { %>
+        <%- include('feed', { feed, feedMetadata, itemsByFeed, reportUsageMap, formatDate }) %>
+      <% }); %>
+    </div>

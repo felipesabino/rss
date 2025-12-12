@@ -1,0 +1,84 @@
+    <div class="report-section-wrapper">
+      <div id="reportToggleContainer" class="report-toggle-container hidden"></div>
+      <div id="reportContainer" class="report-container hidden">
+        <% if (reports && reports.length > 0) { %>
+          <% reports.forEach(function(report) { %>
+            <div class="category-report hidden" data-category="<%= report.category %>">
+              <div class="report-content">
+                <% if (report.report) { %>
+                  <div class="report-header">
+                    <p class="report-intro">
+                      <%= report.report.header %>
+                    </p>
+                  </div>
+
+                  <div class="report-section">
+                    <h3>Main Stories</h3>
+                    <% report.report.mainStories.forEach(function(story) { %>
+                      <div class="story-item">
+                        <div class="story-tag">
+                          <%= story.sectionTag %>
+                        </div>
+                        <h4>
+                          <a href="<%= story.sourceUrl %>" target="_blank">
+                            <%= story.headline %>
+                          </a>
+                        </h4>
+                        <div class="story-source">Source: <%= story.sourceName %></div>
+
+                        <div class="story-details">
+                          <p><strong>What Happened:</strong> <%= story.whatHappened %></p>
+                          <p><strong>Why It Matters:</strong> <%= story.whyItMatters %></p>
+                          <div class="impact-section">
+                            <p><strong>Short-Term:</strong> <%= story.shortTermImpact %></p>
+                            <p><strong>Long-Term:</strong> <%= story.longTermImpact %></p>
+                          </div>
+                          <div class="story-sentiment <%= story.sentiment.toLowerCase() %>">
+                            <strong>Sentiment:</strong>
+                            <%= story.sentiment %> - <%= story.sentimentRationale %>
+                          </div>
+                        </div>
+                      </div>
+                    <% }); %>
+                  </div>
+
+                  <div class="report-section">
+                    <h3>What Else Is Going On</h3>
+                    <ul class="what-else-list">
+                      <% report.report.whatElseIsGoingOn.forEach(function(item) { %>
+                        <li>
+                          <%= item.text %>
+                          <span class="source-link">(<a href="<%= item.sourceUrl %>" target="_blank"><%= item.sourceName %></a>)</span>
+                        </li>
+                      <% }); %>
+                    </ul>
+                  </div>
+
+                  <% if (report.report.byTheNumbers) { %>
+                    <div class="report-section by-the-numbers">
+                      <h3>By The Numbers</h3>
+                      <div class="number-display">
+                        <span class="big-number"><%= report.report.byTheNumbers.number %></span>
+                        <span class="number-commentary"><%= report.report.byTheNumbers.commentary %></span>
+                      </div>
+                    </div>
+                  <% } %>
+
+                  <div class="report-footer">
+                    <p class="sign-off"><%= report.report.signOff %></p>
+                  </div>
+                <% } else { %>
+                  <p>Report content unavailable.</p>
+                <% } %>
+              </div>
+              <div class="report-meta">
+                Generated at <%= formatDate(new Date(report.generatedAt)) %>
+              </div>
+            </div>
+          <% }); %>
+        <% } %>
+        <div id="noReportMessage" class="category-report hidden">
+          <p>No report available for this category.</p>
+        </div>
+      </div>
+    </div>

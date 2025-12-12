@@ -87,17 +87,24 @@ export async function generateStaticSite(): Promise<void> {
     }
   }
 
-  const html = ejs.render(template, {
-    feeds: sources, // Pass sources as feeds to the template for backward compatibility
-    itemsByFeed,
-    feedMetadata: aiProcessedCache.feedMetadata,
-    categories,
-    reports: processedReports,
-    reportUsageMap,
-    formatDate: (date: Date) => {
-      return date.toLocaleDateString(['fr-FR'], { hour: '2-digit', minute: '2-digit' });
+  const html = ejs.render(
+    template,
+    {
+      feeds: sources, // Pass sources as feeds to the template for backward compatibility
+      itemsByFeed,
+      feedMetadata: aiProcessedCache.feedMetadata,
+      categories,
+      reports: processedReports,
+      reportUsageMap,
+      lastUpdated: aiProcessedCache.lastUpdated,
+      formatDate: (date: Date) => {
+        return date.toLocaleDateString(['fr-FR'], { hour: '2-digit', minute: '2-digit' });
+      }
+    },
+    {
+      filename: templatePath
     }
-  });
+  );
 
   // Write the output HTML file
   await fs.writeFile(path.join(OUTPUT_DIR, 'index.html'), html);
