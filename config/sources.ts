@@ -184,6 +184,62 @@ const sourceInputs: SourceInput[] = [
     dateRestrict: "d7",
     categories: ["africa"],
     type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Canada - Diplomacy & Policy",
+    query: "(France OR French) (Canada OR Canadian OR Quebec OR Ottawa OR Montreal) (diplomacy OR summit OR cooperation OR agreement OR embassy OR ambassador OR sanctions OR \"foreign policy\" OR \"bilateral relations\" OR \"trade mission\")",
+    num: 10,
+    dateRestrict: "d7",
+    categories: ["canada"],
+    type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Canada - Economic, Trade & Investment",
+    query: "(France OR French) (Canada OR Canadian OR Quebec OR Ontario OR Alberta OR British Columbia) (investment OR \"trade deal\" OR \"free trade\" OR CETA OR tariff OR \"supply chain\" OR \"industrial policy\" OR \"strategic partnership\" OR \"critical minerals\" OR lithium OR nickel OR cobalt)",
+    num: 10,
+    dateRestrict: "d7",
+    categories: ["canada"],
+    type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Canada - Logistics, Ports & Supply Chain",
+    query: "(France OR French OR \"CMA CGM\") (Canada OR Canadian OR Montreal OR Halifax OR Vancouver OR Prince Rupert) (logistics OR \"supply chain\" OR port OR harbor OR harbour OR terminal OR rail OR intermodal OR \"container traffic\" OR \"shipping line\" OR \"trade route\")",
+    num: 10,
+    dateRestrict: "d7",
+    categories: ["canada"],
+    type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Canada - Aviation & Air Cargo",
+    query: "(\"Air France\" OR \"CMA CGM Air Cargo\" OR \"cargo airline\" OR \"air cargo\" OR \"air freight\" OR \"belly cargo\" OR \"freighter\" OR \"air route\" OR \"air service agreement\") (Canada OR Canadian OR Montreal OR Toronto OR Vancouver OR Quebec) (France OR French)",
+    num: 15,
+    dateRestrict: "d7",
+    categories: ["canada"],
+    type: "google-search" as const,
+  },
+  {
+    name: "Google Search - Canada - Disruptions & Natural Hazards",
+    query:
+      "(" +
+        "wildfire OR smoke OR \"air quality\" OR blizzard OR snowstorm OR " +
+        "flood OR flooding OR cyclone OR hurricane OR storm OR landslide OR " +
+        "earthquake OR \"natural disaster\" OR \"geological event\"" +
+      ") " +
+      "(" +
+        "airport OR airspace OR flights OR \"flight cancellations\" OR \"flight disruption\" OR " +
+        "\"air traffic\" OR NOTAM OR runway OR \"air route\" OR \"air corridor\" OR " +
+        "port OR harbour OR harbor OR canal OR \"shipping lane\" OR \"container ship\" OR " +
+        "\"supply chain\" OR logistics OR \"trade route\" OR \"vessel traffic\" OR " +
+        "\"navigation warning\" OR rail" +
+      ") " +
+      "(" +
+        "Canada OR Canadian OR Quebec OR Ontario OR Alberta OR British Columbia OR " +
+        "Manitoba OR Saskatchewan OR \"Atlantic Canada\"" +
+      ")",
+    num: 10,
+    dateRestrict: "d7",
+    categories: ["canada"],
+    type: "google-search" as const,
   }
 ];
 
