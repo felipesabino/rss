@@ -122,7 +122,7 @@ const sourceInputs: SourceInput[] = [
   },
   {
     name: "Reddit /r/printondemand",
-    url: "https://www.reddit.com/r/printondemand/.rss",
+    url: "https://www.reddit.com/r/printondemand.rss",
     categories: ["pod"],
     type: "rss" as const,
   },
