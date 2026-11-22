@@ -75,6 +75,10 @@ jobs:
       with:
         # Upload entire repository
         path: './dist'
+    # shortcut: the artifact list API can lag right after upload (actions/deploy-pages#451);
+    # split into build + deploy jobs if this still fails
+    - name: Wait for the artifact to be listable
+      run: sleep 15
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
