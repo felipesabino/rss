@@ -89,6 +89,26 @@ describe('scoring service', () => {
         expect(ordered[0].id).toBe(101);
         expect(ordered[1].id).toBe(100);
     });
+
+    it('matches accented words against plain ranking terms', () => {
+        const published = new Date();
+        const [accented, other] = scoreItemsForInstructions([
+            createItem({ title: 'Grève à l’aéroport de Lomé', content: '', published }),
+            createItem({ title: 'Strike at a UK airport', content: '', published })
+        ], 'lome greve');
+        expect(accented.relevanceScore).toBeGreaterThan(0);
+        expect(other.relevanceScore).toBe(0);
+    });
+
+    it('lets a short term list rank one matching headline above an unrelated item with a summary', () => {
+        const published = new Date();
+        const terms = 'Abidjan Dakar Lagos Douala Kinshasa Luanda Djibouti grounding FAA EASA';
+        const [headlineOnly, unrelated] = scoreItemsForInstructions([
+            createItem({ title: 'New freighter route to Abidjan', content: '', hasSummary: false, published }),
+            createItem({ title: 'UK air cargo exports grow', content: 'cargo cargo cargo', hasSummary: true, published })
+        ], terms, { saturateAt: 3 });
+        expect(headlineOnly.rankingScore).toBeGreaterThan(unrelated.rankingScore);
+    });
 });
 
 describe('scoring audit cache', () => {

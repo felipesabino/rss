@@ -478,7 +478,7 @@
         if (!category) {
           return '';
         }
-        return category.charAt(0).toUpperCase() + category.slice(1);
+        return category.replace(/\b\w/g, c => c.toUpperCase());
       }
 
       function handleReportButtonClick(category) {

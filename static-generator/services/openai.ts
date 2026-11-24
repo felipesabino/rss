@@ -167,7 +167,8 @@ Rules:
 - If a story has no summary, judge importance by title.
 - Do not use the terms "Morning Brew" or "Brew".
 - Do not fabricate images or data.
-- If there are not enough interesting stories, keep it shorter.`;
+- If there are not enough interesting stories, keep it shorter.
+- Plain text only: the page shows fields as-is, so never use Markdown (no ** or # or backticks).`;
 
   let userPrompt = `Category: "${category}"`;
 

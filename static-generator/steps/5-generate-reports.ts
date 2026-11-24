@@ -9,7 +9,7 @@ import {
     selectTopRankedItems
 } from '../services/scoring';
 import { sources } from '../../config/sources';
-import { categoryPrompts } from '../../config/category-prompts';
+import { categoryPrompts, categoryRankingTerms } from '../../config/category-prompts';
 
 // Define the structure for category reports
 export interface CategoryReport {
@@ -103,7 +103,9 @@ export async function generateReports(): Promise<void> {
         // Only apply this strategy if the category has a specific prompt
         if (customInstructions) {
             console.log(`Applying diversity clustering and ranking for category "${category}"...`);
-            const scoredItems = scoreItemsForInstructions(items, customInstructions);
+            const rankingTerms = categoryRankingTerms[category.toLowerCase()];
+            const rankingText = rankingTerms ?? customInstructions;
+            const scoredItems = scoreItemsForInstructions(items, rankingText, rankingTerms ? { saturateAt: 3 } : {});
             items = selectTopRankedItems(scoredItems, TOP_K_PER_SOURCE);
 
             const scoredItemsForAudit = [...scoredItems].sort((a, b) => {
@@ -115,7 +117,7 @@ export async function generateReports(): Promise<void> {
 
             await cacheScoringResult({
                 label: category,
-                customInstructions,
+                customInstructions: rankingText,
                 scoredItems: scoredItemsForAudit,
                 selectedItems: items,
                 topKPerSource: TOP_K_PER_SOURCE,

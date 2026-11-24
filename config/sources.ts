@@ -17,6 +17,13 @@ export type SourceConfig = z.infer<typeof sourceConfigSchema>;
 export type SourceInput = Omit<SourceConfig, "id">;
 
 // Source list configuration
+// Google News RSS search, limited to the last day (when:1d goes first: Google drops it from the end of long queries).
+// shortcut: its links are Google redirects, so article text isn't extracted and items reach the report as headlines only; decode the links if summaries are needed.
+function googleNews(query: string, lang: "en" | "fr" = "en"): string {
+  const locale = lang === "fr" ? "hl=fr&gl=FR&ceid=FR:fr" : "hl=en-US&gl=US&ceid=US:en";
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(`when:1d ${query}`)}&${locale}`;
+}
+
 const sourceInputs: SourceInput[] = [
   {
     name: "Hacker News",
@@ -138,121 +145,57 @@ const sourceInputs: SourceInput[] = [
     categories: ["pod"],
     type: "google-search" as const,
   },
-  {
-    name: "Google Search - Africa - Diplomacy & Policy",
-    query: "(France OR French) (Africa OR African OR Mali OR Niger OR Burkina Faso OR Chad OR Senegal OR Gabon OR Congo OR Morocco OR Algeria OR Tunisia OR Ethiopia) (diplomacy OR summit OR cooperation OR agreement OR embassy OR ambassador OR sanctions OR \"foreign policy\" OR \"bilateral relations\")",
-    num: 10,
-    dateRestrict: "d7",
-    categories: ["africa"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Africa - Military & Security",
-    query: "(France OR French) (Mali OR Niger OR Burkina Faso OR Chad OR Sahel OR Africa OR African) (\"military cooperation\" OR \"troop withdrawal\" OR \"security pact\" OR counterterrorism OR Wagner OR Barkhane OR junta OR coup)",
-    num: 10,
-    dateRestrict: "d7",
-    categories: ["africa"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Africa - Economic, Energy & Logistics",
-    query: "(France OR French) (Africa OR African OR Niger OR Gabon OR Congo OR Senegal OR Morocco OR Algeria OR Tunisia OR Ethiopia) (uranium OR Orano OR TotalEnergies OR investment OR \"trade deal\" OR oil OR gas OR infrastructure OR \"development aid\" OR logistics OR \"supply chain\" OR \"air cargo\" OR \"air freight\" OR port OR harbor OR \"shipping line\" OR \"CMA CGM\")",
-    num: 10,
-    dateRestrict: "d7",
-    categories: ["africa"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Africa - Aviation & Air Cargo",
-    query: "(\"Air France\" OR \"CMA CGM Air Cargo\" OR \"cargo airline\" OR \"air cargo\" OR \"air freight\" OR \"belly cargo\" OR \"freighter\" OR \"air route\" OR \"air service agreement\") (Africa OR African OR Mali OR Niger OR Burkina Faso OR Chad OR Senegal OR Gabon OR Congo OR Morocco OR Algeria OR Tunisia OR Ethiopia) (France OR French)",
-    num: 15,
-    dateRestrict: "d7",
-    categories: ["africa"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Africa - Disruptions & Natural Hazards",
-    query:
-      "(" +
-        "volcano OR eruption OR \"ash cloud\" OR \"volcanic ash\" OR earthquake OR " +
-        "flood OR flooding OR cyclone OR hurricane OR storm OR landslide OR " +
-        "\"dust storm\" OR wildfire OR drought OR \"natural disaster\" OR " +
-        "\"geological event\"" +
-      ") " +
-      "(" +
-        "airport OR airspace OR flights OR \"flight cancellations\" OR \"flight disruption\" OR " +
-        "\"air traffic\" OR NOTAM OR runway OR \"air route\" OR \"air corridor\" OR " +
-        "port OR harbour OR harbor OR canal OR \"shipping lane\" OR \"container ship\" OR " +
-        "\"supply chain\" OR logistics OR \"trade route\" OR \"vessel traffic\" OR " +
-        "\"navigation warning\"" +
-      ") " +
-      "(" +
-        "Africa OR African OR Ethiopia OR Kenya OR Tanzania OR Uganda OR Rwanda OR " +
-        "Somalia OR Sudan OR \"Red Sea\" OR \"Gulf of Aden\" OR \"Bab el-Mandeb\" OR " +
-        "\"Suez Canal\" OR Niger OR Nigeria OR Ghana OR Senegal OR Congo OR " +
-        "Mozambique OR Angola" +
-      ")",
-    num: 10,
-    dateRestrict: "d7",
-    categories: ["africa"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Canada - Diplomacy & Policy",
-    query: "(France OR French) (Canada OR Canadian OR Quebec OR Ottawa OR Montreal) (diplomacy OR summit OR cooperation OR agreement OR embassy OR ambassador OR sanctions OR \"foreign policy\" OR \"bilateral relations\" OR \"trade mission\")",
-    num: 10,
-    dateRestrict: "d7",
-    categories: ["canada"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Canada - Economic, Trade & Investment",
-    query: "(France OR French) (Canada OR Canadian OR Quebec OR Ontario OR Alberta OR British Columbia) (investment OR \"trade deal\" OR \"free trade\" OR CETA OR tariff OR \"supply chain\" OR \"industrial policy\" OR \"strategic partnership\" OR \"critical minerals\" OR lithium OR nickel OR cobalt)",
-    num: 10,
-    dateRestrict: "d7",
-    categories: ["canada"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Canada - Logistics, Ports & Supply Chain",
-    query: "(France OR French OR \"CMA CGM\") (Canada OR Canadian OR Montreal OR Halifax OR Vancouver OR Prince Rupert) (logistics OR \"supply chain\" OR port OR harbor OR harbour OR terminal OR rail OR intermodal OR \"container traffic\" OR \"shipping line\" OR \"trade route\")",
-    num: 10,
-    dateRestrict: "d7",
-    categories: ["canada"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Canada - Aviation & Air Cargo",
-    query: "(\"Air France\" OR \"CMA CGM Air Cargo\" OR \"cargo airline\" OR \"air cargo\" OR \"air freight\" OR \"belly cargo\" OR \"freighter\" OR \"air route\" OR \"air service agreement\") (Canada OR Canadian OR Montreal OR Toronto OR Vancouver OR Quebec) (France OR French)",
-    num: 15,
-    dateRestrict: "d7",
-    categories: ["canada"],
-    type: "google-search" as const,
-  },
-  {
-    name: "Google Search - Canada - Disruptions & Natural Hazards",
-    query:
-      "(" +
-        "wildfire OR smoke OR \"air quality\" OR blizzard OR snowstorm OR " +
-        "flood OR flooding OR cyclone OR hurricane OR storm OR landslide OR " +
-        "earthquake OR \"natural disaster\" OR \"geological event\"" +
-      ") " +
-      "(" +
-        "airport OR airspace OR flights OR \"flight cancellations\" OR \"flight disruption\" OR " +
-        "\"air traffic\" OR NOTAM OR runway OR \"air route\" OR \"air corridor\" OR " +
-        "port OR harbour OR harbor OR canal OR \"shipping lane\" OR \"container ship\" OR " +
-        "\"supply chain\" OR logistics OR \"trade route\" OR \"vessel traffic\" OR " +
-        "\"navigation warning\" OR rail" +
-      ") " +
-      "(" +
-        "Canada OR Canadian OR Quebec OR Ontario OR Alberta OR British Columbia OR " +
-        "Manitoba OR Saskatchewan OR \"Atlantic Canada\"" +
-      ")",
-    num: 10,
-    dateRestrict: "d7",
-    categories: ["canada"],
-    type: "google-search" as const,
-  }
+  // Aviation – Africa / Canada: daily brief for an Air France cargo manager.
+  // Sources tagged with both categories are global air cargo and aviation news.
+  ...[
+    { name: "The Loadstar", url: "https://theloadstar.com/feed/" },
+    { name: "Air Cargo News", url: "https://www.aircargonews.net/feed/" },
+    { name: "Air Cargo Week", url: "https://aircargoweek.com/feed/" },
+    { name: "STAT Times", url: "https://www.stattimes.com/rss" },
+    { name: "CargoForwarder Global", url: "https://www.cargoforwarder.eu/feed/" },
+    { name: "AeroTime", url: "https://aerotime.aero/feed" },
+    { name: "FlightGlobal", url: "https://www.flightglobal.com/rss" },
+    { name: "Leeham News", url: "https://leehamnews.com/feed/" },
+    { name: "The Air Current", url: "https://theaircurrent.com/feed/" },
+    { name: "EASA News", url: "https://www.easa.europa.eu/en/newsroom-and-events/news/rss.xml" },
+    {
+      name: "Google News - Aviation safety & groundings",
+      url: googleNews('(FAA OR EASA OR ICAO OR "Transport Canada") (grounding OR grounded OR "airworthiness directive" OR "ground stop" OR outage OR "airspace closure")'),
+    },
+  ].map((s) => ({ ...s, categories: ["aviation - africa", "aviation - canada"], type: "rss" as const })),
+  ...[
+    { name: "RFI Afrique", url: "https://www.rfi.fr/fr/afrique/rss" },
+    { name: "Le Monde Afrique", url: "https://www.lemonde.fr/afrique/rss_full.xml" },
+    { name: "France 24 Afrique", url: "https://www.france24.com/fr/afrique/rss" },
+    { name: "Logistics Update Africa", url: "https://www.logupdateafrica.com/rss" },
+    {
+      name: "Google News - Africa air cargo",
+      url: googleNews('("air cargo" OR "air freight" OR freighter OR "cargo airline") (Africa OR Senegal OR Dakar OR Ivoire OR Abidjan OR Ghana OR Nigeria OR Lagos OR Cameroon OR Douala OR Gabon OR Congo OR Kinshasa OR Angola OR Luanda OR Djibouti OR Chad)'),
+    },
+    {
+      name: "Google News - Fret aérien Afrique",
+      url: googleNews('("fret aérien" OR "cargo aérien" OR "Air France") (Afrique OR Dakar OR Nouakchott OR Conakry OR Abidjan OR Lomé OR Cotonou OR Douala OR Yaoundé OR Malabo OR Libreville OR "Port-Gentil" OR Brazzaville OR "Pointe-Noire" OR Kinshasa OR Ndjamena OR Djibouti)', "fr"),
+    },
+    {
+      name: "Google News - Africa airport & airspace disruptions",
+      url: googleNews('(airport OR airspace OR "flights suspended" OR "flights cancelled" OR strike) (Senegal OR Mauritania OR Guinea OR Ivoire OR Ghana OR Togo OR Benin OR Nigeria OR Cameroon OR "Equatorial Guinea" OR Gabon OR Congo OR Chad OR Angola OR Djibouti)'),
+    },
+    {
+      name: "Google News - Antilles & Guyane aérien",
+      url: googleNews('(aéroport OR vols OR "fret aérien" OR grève OR cyclone OR ouragan) (Martinique OR Guadeloupe OR Guyane OR "Fort-de-France" OR "Pointe-à-Pitre" OR Cayenne)', "fr"),
+    },
+  ].map((s) => ({ ...s, categories: ["aviation - africa"], type: "rss" as const })),
+  ...[
+    { name: "CBC News - Canada", url: "https://www.cbc.ca/webfeed/rss/rss-canada" },
+    {
+      name: "Google News - Canada air cargo",
+      url: googleNews('("air cargo" OR "air freight" OR freighter OR "Air Canada Cargo" OR Cargojet) (Canada OR Montreal OR Toronto OR Vancouver OR Calgary OR Halifax)'),
+    },
+    {
+      name: "Google News - Canada airport & airspace disruptions",
+      url: googleNews('(airport OR "NAV CANADA" OR "air traffic" OR "flights cancelled" OR strike OR "ground stop") (Canada OR Montreal OR Toronto OR Vancouver OR Calgary)'),
+    },
+  ].map((s) => ({ ...s, categories: ["aviation - canada"], type: "rss" as const })),
 ];
 
 export const sources: SourceConfig[] = sourceInputs.map((source, index) => {

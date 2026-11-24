@@ -3,7 +3,7 @@
         <li class="category-item all active" data-category="all">All</li>
         <% categories.forEach(function(category) { %>
           <li class="category-item" data-category="<%= category %>">
-            <%= category.charAt(0).toUpperCase() + category.slice(1) %>
+            <%= category.replace(/\b\w/g, c => c.toUpperCase()) %>
           </li>
         <% }); %>
       </ul>

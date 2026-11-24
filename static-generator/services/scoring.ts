@@ -69,10 +69,14 @@ export function selectDiverseBestItems(
  */
 export function scoreItemsForInstructions(
     items: AIProcessedItem[],
-    customInstructions: string
+    customInstructions: string,
+    // saturateAt: matched keyword weight that counts as full relevance. Default suits long prompts;
+    // short term lists need a low value or one match barely moves the score.
+    options: { saturateAt?: number } = {}
 ): RankedAIProcessedItem[] {
     const profile = buildInstructionProfile(customInstructions);
-    return items.map(item => scoreItemAgainstInstruction(item, profile));
+    const saturateAt = options.saturateAt ?? profile.totalWeight * 3;
+    return items.map(item => scoreItemAgainstInstruction(item, profile, saturateAt));
 }
 
 /**
@@ -194,7 +198,7 @@ function getScoringCachePath(): string {
  * Build a keyword profile from the category instructions.
  */
 function buildInstructionProfile(instruction: string): InstructionProfile {
-    const normalized = instruction.replace(/[’‘]/g, '\'').replace(/[–—]/g, ' ');
+    const normalized = stripAccents(instruction).replace(/[’‘]/g, '\'').replace(/[–—]/g, ' ');
     const tokenized = normalized
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, ' ')
@@ -245,7 +249,7 @@ function buildInstructionProfile(instruction: string): InstructionProfile {
 /**
  * Calculate ranking, recency, and relevance scores for a single item.
  */
-function scoreItemAgainstInstruction(item: AIProcessedItem, profile: InstructionProfile): RankedAIProcessedItem {
+function scoreItemAgainstInstruction(item: AIProcessedItem, profile: InstructionProfile, saturateAt: number): RankedAIProcessedItem {
     const now = Date.now();
     const publishedTime = new Date(item.published).getTime();
     const ageInHours = Math.max(1, (now - publishedTime) / (1000 * 60 * 60));
@@ -264,7 +268,7 @@ function scoreItemAgainstInstruction(item: AIProcessedItem, profile: Instruction
         return sum + keyword.weight * cappedOccurrences;
     }, 0);
 
-    const relevanceScore = Math.min(1, matchedWeight / (profile.totalWeight * 3));
+    const relevanceScore = Math.min(1, matchedWeight / saturateAt);
 
     const summaryBoost = item.hasSummary ? 0.05 : 0;
     const sentimentBoost = item.sentiment === 'Positive' ? 0.05 : 0;
@@ -284,7 +288,7 @@ function scoreItemAgainstInstruction(item: AIProcessedItem, profile: Instruction
  * Normalize text so scoring and keyword matching remain consistent.
  */
 function normalizeContentForScoring(value: string): string {
-    return value
+    return stripAccents(value)
         .toLowerCase()
         .replace(/[’‘]/g, '\'')
         .replace(/[–—]/g, ' ')
@@ -306,6 +310,11 @@ function countOccurrences(text: string, term: string, isPhrase: boolean): number
     const regex = new RegExp(pattern, 'g');
     const matches = text.match(regex);
     return matches ? matches.length : 0;
+}
+
+// "Lomé" and "lome" must match: the scorer drops every non a-z character.
+function stripAccents(value: string): string {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 function escapeRegExp(value: string): string {
