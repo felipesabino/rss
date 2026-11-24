@@ -17,6 +17,7 @@ export interface CategoryReport {
     report: Report;
     generatedAt: number;
     usedItemIds: number[];
+    prompt?: string;
 }
 
 // Define the structure for the reports cache
@@ -28,6 +29,12 @@ interface ReportsCache {
 // Path to the reports cache file
 const REPORTS_CACHE_PATH = path.join(process.cwd(), '.cache', 'step5-reports.json');
 const TOP_K_PER_SOURCE = 3;
+const ONE_HOUR = 60 * 60 * 1000;
+
+// Reuse a report only if it is under an hour old and was written with the current category prompt
+export function canReuseReport(existing: CategoryReport | undefined, prompt: string | undefined, now = Date.now()): boolean {
+    return !!existing && now - existing.generatedAt < ONE_HOUR && existing.prompt === prompt;
+}
 
 /**
  * Generate newsletter-style reports for each category
@@ -154,11 +161,8 @@ export async function generateReports(): Promise<void> {
 
         // Check if we have a recent report for this category
         const existingReport = reportsCache.reports.find(r => r.category === category);
-        const ONE_HOUR = 60 * 60 * 1000;
 
-        // If we have a report generated less than 1 hour ago, reuse it
-        // Unless we force regeneration (could add a flag for that)
-        if (existingReport && (Date.now() - existingReport.generatedAt < ONE_HOUR)) {
+        if (existingReport && canReuseReport(existingReport, customInstructions)) {
             console.log(`Using cached report for "${category}" (generated ${new Date(existingReport.generatedAt).toLocaleTimeString()})`);
             newReports.push({
                 ...existingReport,
@@ -180,7 +184,8 @@ export async function generateReports(): Promise<void> {
                 category,
                 report: reportData,
                 generatedAt: Date.now(),
-                usedItemIds
+                usedItemIds,
+                prompt: customInstructions
             });
             console.log(`Generated new report for "${category}"`);
         } else {
