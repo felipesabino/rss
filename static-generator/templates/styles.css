@@ -662,7 +662,8 @@ body {
 
 .summary-tablist {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 0.25rem;
   background: rgba(12, 12, 14, 0.04);
   border: 1px solid var(--border);
@@ -708,6 +709,41 @@ body {
 
 .summary-panel.active {
   display: block;
+}
+
+/* Hacker News top comments. pre-line only on comment text: the template's own whitespace must not render. */
+.discussion-panel {
+  white-space: normal;
+}
+
+.discussion-takeaway {
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.discussion-comments {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.discussion-comment {
+  margin-bottom: 0.75rem;
+}
+
+.discussion-comment-text {
+  white-space: pre-line;
+}
+
+.discussion-comment-author,
+.discussion-all-link {
+  color: var(--muted);
+  font-size: 0.85em;
+  text-decoration: none;
+}
+
+.discussion-comment-author:hover,
+.discussion-all-link:hover {
+  color: var(--accent);
 }
 
 .feed-item-media-embed {

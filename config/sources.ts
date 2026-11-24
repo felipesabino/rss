@@ -196,6 +196,40 @@ const sourceInputs: SourceInput[] = [
       url: googleNews('(airport OR "NAV CANADA" OR "air traffic" OR "flights cancelled" OR strike OR "ground stop") (Canada OR Montreal OR Toronto OR Vancouver OR Calgary)'),
     },
   ].map((s) => ({ ...s, categories: ["aviation - canada"], type: "rss" as const })),
+  ...[
+    { name: "20 Minutes Paris", url: "https://www.20minutes.fr/feeds/rss-paris.xml" },
+    { name: "actu.fr Île-de-France", url: "https://www.actu.fr/ile-de-france/rss.xml" },
+    { name: "Sortir à Paris", url: "https://www.sortiraparis.com/rss/actualites" },
+    {
+      name: "Google News - Paris transport & strikes",
+      url: googleNews('(grève OR "trafic perturbé" OR fermeture OR travaux OR "mouvement social") (RATP OR SNCF OR RER OR métro OR Transilien OR périphérique) Paris', "fr"),
+    },
+    {
+      name: "Google News - Paris weather & alerts",
+      url: googleNews('(vigilance OR "Météo-France" OR canicule OR "pic de pollution" OR orages OR inondation OR neige) Paris', "fr"),
+    },
+    {
+      name: "Google News - What changes in France",
+      url: googleNews('("ce qui change" OR "à partir du 1er" OR "nouvelles règles" OR "date limite") (impôts OR CAF OR APL OR loyer OR "titre de séjour" OR Navigo OR retraite) France', "fr"),
+    },
+  ].map((s) => ({ ...s, categories: ["paris"], type: "rss" as const })),
+  ...[
+    { name: "Modern Retail", url: "https://www.modernretail.co/feed/" },
+    { name: "Practical Ecommerce", url: "https://www.practicalecommerce.com/feed" },
+    { name: "Colossal", url: "https://www.thisiscolossal.com/feed/" },
+    { name: "Creative Bloq", url: "https://www.creativebloq.com/feeds/all" },
+    {
+      name: "Google News - Indie brands & small shops",
+      url: googleNews('("indie brand" OR "small business owners" OR "DTC brand" OR "Etsy sellers" OR "Shopify merchants" OR "creator economy")'),
+    },
+  ].map((s) => ({ ...s, categories: ["indie e-commerce"], type: "rss" as const })),
+  ...[
+    { name: "Show HN", url: "https://hnrss.org/show?points=10" },
+    { name: "Lobsters", url: "https://lobste.rs/rss" },
+    { name: "Simon Willison", url: "https://simonwillison.net/atom/everything/" },
+    { name: "Ink & Switch", url: "https://www.inkandswitch.com/index.xml" },
+    { name: "Product Hunt", url: "https://www.producthunt.com/feed" },
+  ].map((s) => ({ ...s, categories: ["personal tools"], type: "rss" as const })),
 ];
 
 export const sources: SourceConfig[] = sourceInputs.map((source, index) => {

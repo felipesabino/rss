@@ -5,6 +5,7 @@ import { parseDate } from '../services/date-parser';
 import { loadRawFeedCache } from './1-fetch-sources';
 import { sources } from '../../config/sources';
 import { FeedItem, FeedMetadata } from '../services/feed-parser';
+import { fetchTopHnComments } from '../services/hn-comments';
 
 // Define the structure for extracted content items
 export interface ExtractedItem {
@@ -24,6 +25,7 @@ export interface ExtractedItem {
 
 export interface CommentInsights {
   totalComments?: number;
+  takeaway?: string; // one-line AI summary of the discussion
   sentimentBreakdown?: {
     constructive?: number;
     technical?: number;
@@ -35,6 +37,7 @@ export interface CommentInsights {
     text: string;
     sentiment?: 'Constructive' | 'Technical' | 'Flame War' | 'Neutral';
     score?: number;
+    url?: string;
   }>;
 }
 
@@ -179,7 +182,8 @@ export async function extractAllContent(): Promise<void> {
           mediaType,
           mediaUrl,
           points: item.points,
-          commentCount: item.commentCount
+          commentCount: item.commentCount,
+          commentInsights: item.comments ? await fetchTopHnComments(item.comments) : undefined
         };
 
         // Add to the extracted items array

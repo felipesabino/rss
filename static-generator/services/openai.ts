@@ -114,6 +114,40 @@ I will provide you with the raw HTML content of a webpage.
   }
 }
 
+/**
+ * One-sentence take on what a discussion thread adds to the story (e.g. Hacker News comments).
+ * Returns undefined on any failure so the page simply shows the comments without a takeaway.
+ */
+export async function summarizeDiscussion(title: string, comments: string[]): Promise<string | undefined> {
+  if (!process.env.OPENAI_API_KEY || !comments.length) return undefined;
+
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: process.env.OPENAI_API_BASE_URL
+  });
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL_NAME || "gpt-4o-2024-08-06",
+      messages: [
+        {
+          role: "system",
+          content: "You summarize online discussion threads. In one plain-text sentence of at most 35 words, say what the top comments add to the story: the main agreement, disagreement, correction or useful insight. No Markdown, no preamble."
+        },
+        {
+          role: "user",
+          content: `Story: ${title}\n\nTop comments:\n${comments.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+        }
+      ],
+    }, { timeout: 60 * 1000, maxRetries: 2 });
+
+    return response.choices[0]?.message?.content?.trim() || undefined;
+  } catch (error) {
+    console.error("Error summarizing discussion:", error);
+    return undefined;
+  }
+}
+
 export const REPORT_ITEM_LIMIT = 20;
 
 export interface ReportItem {

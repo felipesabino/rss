@@ -141,7 +141,9 @@ export async function generateReports(): Promise<void> {
 
             return {
                 title: item.title,
-                summary: item.summary,
+                summary: item.commentInsights?.takeaway
+                    ? `${item.summary || ''} Hacker News discussion: ${item.commentInsights.takeaway}`.trim()
+                    : item.summary,
                 url: item.url,
                 published: new Date(item.published),
                 sourceName: source?.name || 'Unknown Source',

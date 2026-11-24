@@ -92,25 +92,49 @@
           </svg>
         </span>
       <% } %>
-      <% if (item.summary || hasExpandableMedia) { %>
+      <% if (item.summary || hasExpandableMedia || (item.commentInsights && item.commentInsights.highlightedComments && item.commentInsights.highlightedComments.length)) { %>
         <span class="feed-item-toggle-icon" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
         </span>
       <% } %>
     </div>
   </div>
-  <% if (item.summary || item.eli5) { %>
+  <% const hasSummaryText = !!(item.summary || item.eli5); const topComments = (item.commentInsights && item.commentInsights.highlightedComments) || []; %>
+  <% if (hasSummaryText || topComments.length) { %>
     <div class="feed-item-summary" id="summary-<%= item.id %>" data-item-id="<%= item.id %>">
       <div class="summary-tablist" role="tablist" aria-label="Summary view">
-        <button class="summary-tab active" role="tab" aria-selected="true" data-target="tldr" type="button">TL;DR</button>
-        <button class="summary-tab" role="tab" aria-selected="false" data-target="eli5" type="button">ELI5</button>
+        <% if (hasSummaryText) { %>
+          <button class="summary-tab active" role="tab" aria-selected="true" data-target="tldr" type="button">TL;DR</button>
+          <button class="summary-tab" role="tab" aria-selected="false" data-target="eli5" type="button">ELI5</button>
+        <% } %>
+        <% if (topComments.length) { %>
+          <button class="summary-tab<%= hasSummaryText ? '' : ' active' %>" role="tab" aria-selected="<%= hasSummaryText ? 'false' : 'true' %>" data-target="discussion" type="button">Discussion</button>
+        <% } %>
       </div>
-      <div class="summary-panel active" role="tabpanel" data-panel="tldr">
-        <%= item.summary || item.eli5 || '' %>
-      </div>
-      <div class="summary-panel" role="tabpanel" data-panel="eli5">
-        <%= item.eli5 || item.summary || '' %>
-      </div>
+      <% if (hasSummaryText) { %>
+        <div class="summary-panel active" role="tabpanel" data-panel="tldr">
+          <%= item.summary || item.eli5 || '' %>
+        </div>
+        <div class="summary-panel" role="tabpanel" data-panel="eli5">
+          <%= item.eli5 || item.summary || '' %>
+        </div>
+      <% } %>
+      <% if (topComments.length) { %>
+        <div class="summary-panel discussion-panel<%= hasSummaryText ? '' : ' active' %>" role="tabpanel" data-panel="discussion">
+          <% if (item.commentInsights.takeaway) { %>
+            <p class="discussion-takeaway"><%= item.commentInsights.takeaway %></p>
+          <% } %>
+          <ol class="discussion-comments">
+            <% topComments.forEach(function(comment) { %>
+              <li class="discussion-comment">
+                <div class="discussion-comment-text"><%= comment.text %></div>
+                <a class="discussion-comment-author" href="<%= comment.url || item.commentsUrl %>" target="_blank" rel="noopener noreferrer">— <%= comment.author || 'anonymous' %></a>
+              </li>
+            <% }); %>
+          </ol>
+          <a class="discussion-all-link" href="<%= item.commentsUrl %>" target="_blank" rel="noopener noreferrer">All <%= item.commentInsights.totalComments || '' %> comments on Hacker News ↗</a>
+        </div>
+      <% } %>
     </div>
   <% } %>
   <% if (item.mediaType === "image") { %>

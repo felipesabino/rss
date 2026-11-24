@@ -1,4 +1,4 @@
-import { analyzeItem } from '../services/openai';
+import { analyzeItem, summarizeDiscussion } from '../services/openai';
 import fs from 'fs/promises';
 import path from 'path';
 import { loadProcessedContentCache, ProcessedContentItem } from './3-process-content';
@@ -113,13 +113,22 @@ export async function processWithOpenAI(): Promise<void> {
       if (!eli5 && summary) {
         eli5 = summary;
       }
+
+      // Runs even for skipped media items: a PDF or video can still have a useful HN thread
+      let commentInsights = item.commentInsights;
+      const topComments = commentInsights?.highlightedComments?.map(c => c.text) || [];
+      if (commentInsights && topComments.length) {
+        commentInsights = { ...commentInsights, takeaway: await summarizeDiscussion(item.title, topComments) };
+      }
+
       const aiProcessedItem: AIProcessedItem = {
         ...item,
         summary,
         eli5,
         hasSummary,
         sentiment,
-        tags
+        tags,
+        commentInsights
       };
 
       // Add to the AI processed items array

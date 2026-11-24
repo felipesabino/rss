@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { loadExtractedContentCache, ExtractedItem } from './2-extract-content';
+import { loadExtractedContentCache, ExtractedItem, CommentInsights } from './2-extract-content';
 import { NON_TEXT_DOMAINS, NON_TEXT_EXTENSIONS } from '../../config/constants';
 import { URL } from 'url';
 import { sources } from '../../config/sources';
