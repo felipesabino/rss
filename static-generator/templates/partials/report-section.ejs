@@ -12,6 +12,7 @@
                     </p>
                   </div>
 
+                  <% if (report.report.mainStories.length) { %>
                   <div class="report-section">
                     <h3>Main Stories</h3>
                     <% report.report.mainStories.forEach(function(story) { %>
@@ -41,6 +42,7 @@
                       </div>
                     <% }); %>
                   </div>
+                  <% } %>
 
                   <div class="report-section">
                     <h3>What Else Is Going On</h3>
