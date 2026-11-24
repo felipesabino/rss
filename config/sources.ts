@@ -25,14 +25,8 @@ const sourceInputs: SourceInput[] = [
     type: "rss" as const,
   },
   {
-    name: "Reddit /r/singularity",
-    url: "https://www.reddit.com/r/singularity.rss",
-    categories: ["tech"],
-    type: "rss" as const,
-  },
-  {
-    name: "Reddit /r/news",
-    url: "https://www.reddit.com/r/news/.rss",
+    name: "BBC News – World",
+    url: "https://feeds.bbci.co.uk/news/world/rss.xml",
     categories: ["world news"],
     type: "rss" as const,
   },
@@ -91,24 +85,6 @@ const sourceInputs: SourceInput[] = [
     type: "rss" as const,
   },
   {
-    name: "Reddit /r/brasil",
-    url: "https://www.reddit.com/r/brasil.rss",
-    categories: ["brazil", "regional news"],
-    type: "rss" as const,
-  },
-  {
-    name: "Reddit /r/france",
-    url: "https://www.reddit.com/r/france.rss",
-    categories: ["france", "regional news"],
-    type: "rss" as const,
-  },
-  {
-    name: "Reddit /r/paris",
-    url: "https://www.reddit.com/r/paris.rss",
-    categories: ["france", "regional news"],
-    type: "rss" as const,
-  },
-  {
     name: "Printful Blog",
     url: "https://www.printful.com/blog/feed",
     categories: ["pod"],
@@ -117,12 +93,6 @@ const sourceInputs: SourceInput[] = [
   {
     name: "Shopify Changelog",
     url: "https://changelog.shopify.com/feed",
-    categories: ["pod"],
-    type: "rss" as const,
-  },
-  {
-    name: "Reddit /r/printondemand",
-    url: "https://www.reddit.com/r/printondemand.rss",
     categories: ["pod"],
     type: "rss" as const,
   },

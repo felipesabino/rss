@@ -220,6 +220,18 @@ describe('feed-parser', () => {
       expect(mockHtmlParser.load).toHaveBeenCalled();
       expect(result).toEqual([]);
     });
+
+    it('should not reuse the previous feed metadata when a feed fails', async () => {
+      mockFeedParser.parseURL.mockResolvedValueOnce({ link: 'https://changelog.shopify.com', items: [] });
+      await feedParserService.parseFeedWithMetadata('https://changelog.shopify.com/feed', 'Shopify');
+
+      mockFeedParser.parseURL.mockRejectedValueOnce(new Error('Status code 429'));
+      mockHttpClient.get.mockRejectedValue(new Error('Response code 429 (Too Many Requests)'));
+      const { items, metadata } = await feedParserService.parseFeedWithMetadata('https://www.reddit.com/r/x.rss', 'Reddit');
+
+      expect(items).toEqual([]);
+      expect(metadata.siteUrl).toBe('');
+    });
   });
   
   describe('parseFeed function', () => {

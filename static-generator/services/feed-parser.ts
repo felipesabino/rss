@@ -250,6 +250,8 @@ export class FeedParserService {
    * @returns An array of normalized feed items
    */
   async parseFeed(feedUrl: string, feedName: string): Promise<FeedItem[]> {
+    // A failed feed must not inherit the previous feed's metadata
+    this._lastMetadata = { siteUrl: '', iconUrl: '' };
     try {
       // Initialize metadata object
       const metadata: FeedMetadata = {
